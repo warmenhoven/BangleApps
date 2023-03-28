@@ -316,12 +316,18 @@ Bangle.on("twist", () => {
   }
 });
 
-Bangle.on("tap", (d) => {
-  if (d.double && d.dir === "top") {
+let sonic_touchFirst = 0;
+Bangle.on("touch", (button, xy) => {
+  if (isSettings) return false;
+  if (sonic_touchFirst + 1000 > Date.now()) {
     fullReset();
     isSettings = true;
     Bangle.setLocked(false);
     E.showMenu(settingsMenu);
+    return true;
+  } else {
+    sonic_touchFirst = Date.now();
+    return false;
   }
 });
 
