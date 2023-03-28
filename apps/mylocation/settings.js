@@ -5,9 +5,9 @@ let settings;
 
 // initialize with default settings...
 let s = {
-  'lat': 51.5072,
-  'lon': 0.1276,
-  'location': "London"
+  'lat': 38.9072,
+  'lon': -77.0369,
+  'location': "Washington DC"
 };
 
 function loadSettings() {
@@ -22,9 +22,9 @@ function saveSettings() {
   require('Storage').write(SETTINGS_FILE, settings);
 }
 
-const locations = ["London" ,"Newcastle","Edinburgh", "Paris" , "New York" , "Tokyo"  , "Frankfurt", "Auckland", "???"];
-const lats =      [ 51.5072 ,  54.9783  , 55.9533   , 48.8566 ,  40.7128   ,  35.6762 ,  50.1236   ,  -36.9    ,  0.0 ];
-const lons =      [ -0.1276 ,  -1.6178  , -3.1883   ,  2.3522 , -74.0060   , 139.6503 ,   8.6553   ,  174.7832 ,  0.0 ];
+const locations = ["Washington DC", "London" ,"Newcastle","Edinburgh", "Paris" , "New York" , "Tokyo"  , "Frankfurt", "Auckland", "???"];
+const lats =      [ 38.9072,         51.5072 ,  54.9783  , 55.9533   , 48.8566 ,  40.7128   ,  35.6762 ,  50.1236   ,  -36.9    ,  0.0 ];
+const lons =      [ -77.0369,        -0.1276 ,  -1.6178  , -3.1883   ,  2.3522 , -74.0060   , 139.6503 ,   8.6553   ,  174.7832 ,  0.0 ];
 
 function setFromGPS() {
   Bangle.on('GPS', (gps) => {
