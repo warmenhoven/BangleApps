@@ -7,6 +7,7 @@
   var H = g.getHeight();
   var scale = W/240;
   var F = 44 * scale;
+  const is12Hour = (require("Storage").readJSON("setting.json", 1) || {})["12hour"];
 
   function drawTime() {    
       function convert(n){
@@ -18,13 +19,20 @@
           else if(n<60) return {top:t20[Math.floor(n/10)-2],bot:t0[n%10]};
           return "error";     
       }
+      function getHours(now) {
+          if (!is12Hour)
+              return now.getHours();
+          if (!now.getHours())
+              return 12;
+          return now.getHours() - (now.getHours() > 12 ? 12 : 0);
+      }
       g.reset();
       g.clearRect(0,24,W-1,H-1);
       var d = new Date();
       g.setColor(g.theme.fg);
       g.setFontAlign(0,0);
       g.setFont("Vector",F);
-      var txt = convert(d.getHours());
+      var txt = convert(getHours(d));
       g.setColor(g.theme.fg);
       g.drawString(txt.top,W/2,H/2+24-2*F);
       g.setColor(g.theme.fg2);

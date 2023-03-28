@@ -21,12 +21,20 @@
         function d02(value) {
           return ('0' + value).substr(-2);
         }
+
+        function getHours(now) {
+          if (!is12Hour)
+            return now.getHours();
+          if (!now.getHours())
+            return 12;
+          return now.getHours() - (now.getHours() > 12 ? 12 : 0);
+        }
         
         function drawClock() {
           g.reset();
           g.clearRect(0, widget, viewport.width, viewport.height);   
           var now = new Date(); 
-          const hour = d02(now.getHours() - (is12Hour && now.getHours() > 12 ? 12 : 0));
+          const hour = d02(getHours(now));
           const minutes = d02(now.getMinutes());
           const day = d02(now.getDate());
           const month = d02(now.getMonth() + 1);
