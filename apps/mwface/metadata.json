@@ -1,0 +1,16 @@
+{ "id": "mwface",
+  "name": "Matthew's Face",
+  "shortName":"Matthew's Face",
+  "version":"0.01",
+  "description": "The Face Matthew Designed",
+  "readme": "README.md",
+  "icon": "mwface.png",
+  "type": "clock",
+  "tags": "clock",
+  "supports" : ["BANGLEJS2"],
+  "allow_emulator": true,
+  "storage": [
+    {"name":"mwface.app.js","url":"app.js"},
+    {"name":"mwface.img","url":"app-icon.js","evaluate":true}
+  ]
+}
