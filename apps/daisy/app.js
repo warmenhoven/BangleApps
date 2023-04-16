@@ -67,7 +67,10 @@ function setSmallFont() {
 
 function getSteps() {
   try {
-    return Bangle.getHealthStatus("day").steps;
+    var latest = Bangle.getHealthStatus().steps;
+    var stepdata = new Uint16Array(24);
+    require("health").readDay(new Date(), h => stepdata[h.hr] += h.steps);
+    return latest + stepdata.reduce((a, b) => a + b);
   } catch (e) {
     if (WIDGETS.wpedom !== undefined)
       return WIDGETS.wpedom.getSteps();
