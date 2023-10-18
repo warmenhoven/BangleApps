@@ -197,10 +197,17 @@ function draw() {
 
 function drawClock() {
   var date = new Date();
-  //var timeStr = require("locale").time(date,1);
+  const is12Hour = (require("Storage").readJSON("setting.json", 1) || {})["12hour"];
   var da = date.toString().split(" ");
-  //var time = da[4].substr(0,5);
-  var hh = da[4].substr(0,2);
+  var time = da[4].substr(0,5);
+    function getHours(now) {
+      if (!is12Hour)
+        return now.getHours();
+      if (!now.getHours())
+        return 12;
+      return now.getHours() - (now.getHours() > 12 ? 12 : 0);
+    }
+    var hh = getHours(date);
   var mm = da[4].substr(3,2);
   var steps = getSteps();
   var p_steps = Math.round(100*(steps/10000));
