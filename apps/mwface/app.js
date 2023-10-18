@@ -2,6 +2,25 @@ const bg = require("heatshrink").decompress(atob("2GwiHbk2x8OhoGY8GpoO54epoWpkOQ
 
 const locale = require("locale");
 
+const COLORS = {
+  blue: '#0000ff',
+  green: '#00ff00',
+  red: '#ff0000',
+  white: '#ffffff',
+  black: '#000000',
+  yellow: '#ffff00',
+  gold: '#801000'
+};
+
+const SETTINGS = {
+  colors: {
+    date: COLORS.white,
+    time: COLORS.green,
+    compass: COLORS.gold,
+    steps: COLORS.gold
+  }
+};
+
 function drawBounds(x, y, w, h, c) {
   var color = g.getColor();
   //g.clearRect(x, y, w, h);
@@ -30,11 +49,11 @@ function drawDayAndYear(str, x, y, w, h) {
 
 function drawDate(x, y, w, h) {
   //g.clearRect(x, y, w, h);
-  //drawBounds(x, y, w, h, '#0000ff');
+  //drawBounds(x, y, w, h, COLORS.blue);
   var font = g.getFont();
   g.setFont("Vector18");
   var color = g.getColor();
-  g.setColor(0, 0xff, 0);
+  g.setColor(SETTINGS.colors.date);
   const now = new Date();
   let height = Math.floor(h / 3);
   drawDOW(locale.dow(now), x, y, w, height);
@@ -87,7 +106,7 @@ function drawTime(x, y, w, h) {
   var font = g.getFont();
   setMaxTmFont();
   var color = g.getColor();
-  g.setColor(0, 0xff, 0);
+  g.setColor(SETTINGS.colors.time);
   g.drawString(time, x + getTmXOff(time), y + getTmYOff(time));
   g.setColor(color);
   g.setFont(font);
@@ -96,8 +115,34 @@ function drawTime(x, y, w, h) {
 function drawMoon() {
 }
 
+var compassHeadings = [];
+Bangle.on('mag', cmpData => {
+  compassHeadings.push(cmpData.heading);
+});
+//Bangle.setCompassPower(1);
+//Bangle.resetCompass();
 function drawCompass(x, y, w, h) {
-  drawBounds(x, y, w, h, '#000000');
+  //drawBounds(x, y, w, h, '#000000');
+  if (!compassHeadings.length)
+    return;
+  //const headings = ['N', 'E', 'S', 'W'];
+  //const headings = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const headings = ['S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE'];
+  const degPerHeading = 360 / headings.length;
+  var sum = compassHeadings.reduce((a, b) => a + b);
+  var avg = sum / compassHeadings.length;
+  compassHeadings = [];
+  var offset = (avg + (degPerHeading / 2)) % 360;
+  var idx = Math.floor(offset / degPerHeading);
+  var font = g.getFont();
+  g.setFont("Vector21");
+  var color = g.getColor();
+  g.setColor(SETTINGS.colors.compass);
+  let xoff = Math.floor(((w - x) - g.stringWidth(headings[idx])) / 2);
+  let yoff = Math.floor(((h - y) - g.getFontHeight()) / 2);
+  g.drawString(headings[idx], x + xoff, y + yoff);
+  g.setColor(color);
+  g.setFont(font);
 }
 
 const timerIcon = require("Storage").read("alarm.img");
@@ -119,13 +164,15 @@ function drawSteps(x, y, w, h) {
   const font = g.getFont();
   const color = g.getColor();
   g.setFont("Vector18");
-  g.setColor(0x80, 0x10, 0);
+  g.setColor(SETTINGS.colors.steps);
   let xoff = Math.floor(((w - x) - g.stringWidth(steps)) / 2);
   let yoff = Math.floor(((h - y) - g.getFontHeight()) / 2);
   g.drawString(steps, x + xoff, y + yoff);
   g.setFont(font);
   g.setColor(color);
 }
+
+const drawerHeight = 52;
 
 function draw() {
   // Reset the state of the graphics library
@@ -139,9 +186,9 @@ function draw() {
   drawDate(0, 0, Math.floor(width / 2), Math.floor(height / 2));
   drawTime(Math.ceil(width / 2), 0, Math.floor(width / 2), Math.floor(height / 2));
   drawMoon();
-  drawCompass(0, height - 42, Math.floor(width / 3), height - 1);
-  drawTimer(Math.floor(width / 3), height - 42, Math.floor(width / 3) * 2, height - 1);
-  drawSteps(Math.floor(width / 3) * 2, height - 42, width - 1, height - 1);
+  drawCompass(0, height - drawerHeight, Math.floor(width / 3), height - 1);
+  drawTimer(Math.floor(width / 3), height - drawerHeight, Math.floor(width / 3) * 2, height - 1);
+  drawSteps(Math.floor(width / 3) * 2, height - drawerHeight, width - 1, height - 1);
 }
 
 Bangle.on('touch', (button, xy) => {
@@ -150,7 +197,7 @@ Bangle.on('touch', (button, xy) => {
   console.log("touch => (" + x + " " + y + ")");
   var width = g.getWidth();
   var height = g.getHeight();
-  if (y < height - 42)
+  if (y < height - drawerHeight)
     return;
   let btwd = Math.floor(width / 3);
   if (x < btwd) {
