@@ -7,8 +7,6 @@ var btnSave = document.getElementById("btnSave");
 var btnCancel = document.getElementById("btnCancel");
 var settings = {};
 
-const FIRST_CAT_IDX = 1;
-
 // #region XXX: Ensure these are kept in sync between settings.js, loader-settings.js, and app.js
 const SETTINGS_FILE = "harvester.json";
 function getDefaultSettings() {
@@ -126,6 +124,7 @@ function parseCategory(elem) {
   var cat = {
     title: elem.querySelector('input[name=title]').value,
     color: color, fg: fg_code[iColor], gy: gy_code[iColor],
+    id: elem.dataset.id,
   };
   let targetMin = elem.querySelector('input[name=target_min]')?.value;
   if (targetMin) cat.target_min = 0 | targetMin;
@@ -181,12 +180,12 @@ function loadFromBangle() {
     Util.readStorageJSON(SETTINGS_FILE, data => {
       settings = normalizeSettings(data);
       fruitfulElement.innerHTML = '';
-      for (let i = FIRST_CAT_IDX; i < settings.fruitful.length; i++) {
-        fruitfulElement.appendChild(createCategoryEdit(i, settings.fruitful[i]));
+      for (let cat of settings.fruitful) {
+        if (cat.title || cat.id) fruitfulElement.appendChild(createCategoryEdit(cat));
       }
       decenteringElement.innerHTML = '';
-      for (let i = FIRST_CAT_IDX; i < settings.decentering.length; i++) {
-        decenteringElement.appendChild(createCategoryEdit(-i, settings.decentering[i]));
+      for (let cat of settings.decentering) {
+        if (cat.title || cat.id) decenteringElement.appendChild(createCategoryEdit(cat));
       }
 
       btnSave.disabled = true;
@@ -198,7 +197,7 @@ function loadFromBangle() {
 
 /* exported deleteCategory */
 function deleteCategory(evt) {
-  var elemCat = evt.target.closest('[data-idx]');
+  var elemCat = evt.target.closest('[data-id]');
   if (!elemCat) {
     console.log("Couldn't find elements to delete", evt);
     return;
@@ -208,9 +207,9 @@ function deleteCategory(evt) {
   registerChange(true);
 }
 
-function createCategoryEdit(idx, {title, color, target_min}) {
+function createCategoryEdit({id, title, color, target_min}) {
   let elemCat = document.createElement('tr');
-  elemCat.dataset.idx = idx;
+  elemCat.dataset.id = id;
   let iColor = color_options.indexOf(color);
   let colorList = '';
   for (let i = 0; i < color_options.length; i++) {
