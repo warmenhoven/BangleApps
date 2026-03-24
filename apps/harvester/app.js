@@ -236,6 +236,8 @@ function setAt(arr, i, v) {
   return arr[i] = v;
 }
 
+const MAX_SEC = 24 * 60 * MIN;
+
 function getMin(i) {
   return Math.floor(at(pendingTimeCat, i) / MIN);
 }
@@ -261,7 +263,15 @@ function useRecenter(sec) {
      sec=60, buf=0; used=0
    */
   var fallow_used_sec = sec;
-  if (sec > 0) fallow_used_sec = E.clip(pendingTimeCat[FALLOW_IDX], 0, sec);
+  if (sec > 0) {
+    fallow_used_sec = E.clip(pendingTimeCat[FALLOW_IDX], 0, sec);
+    if (fallow_used_sec > 0 && fallow_used_sec < sec) {
+      if (tsFallowRanDry) {
+        log_debug(`Overwriting tsFallowRanDry from ${tsFallowRanDry} to ${curMs()}!`);
+      }
+      tsFallowRanDry = curMs();
+    }
+  }
   pendingTimeCat[FALLOW_IDX] -= fallow_used_sec;
   return sec - fallow_used_sec;
 }
@@ -312,6 +322,7 @@ function spendTime(mode, sec) {
   }
 }
 
+var tsFallowRanDry, secFallowFixupEligible = 0;
 /** For correcting human error in switching modes later than one should have.
  *  Does not include additional fallow accumulations/usage.
  *  @returns 2-tuple with the amount to be added to current and the amount to be
@@ -325,7 +336,7 @@ function lateStartAdjustments(totalSecByCat, curMode, prevMode, secDesired) {
     // Subtract fruitful time spent in other category
   } else if (curMode >= FIRST_FRUITFUL_IDX && FALLOW_IDX === prevMode) {
     // (Will re-accumulate additional fallow time)
-    secAvailable = secDesired; // No bound currently possible
+    secAvailable = Math.min(secDesired, secFallowFixupEligible);
   } else if (curMode <= FIRST_DECENTER_IDX && prevMode >= FIRST_FRUITFUL_IDX) {
     // Subtract fruitful time and use up fallow time
     return [secDesired, secAvailable];
@@ -716,6 +727,16 @@ function setCurMode(newMode) {
   //log_debug('Setting cur_mode to ' + newMode);
   prevSpentMode = settings.cur_mode;
   if (prevSpentMode >= FIRST_FRUITFUL_IDX) lastBuzzCheck = new Date().valueOf();
+  if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX && tsFallowRanDry) {
+    secFallowFixupEligible -= Math.round((curMs() - tsFallowRanDry) / 1000);
+    if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
+    tsFallowRanDry = null;
+  } else if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX) {
+    secFallowFixupEligible -= pendingTimeCat[FALLOW_IDX];
+    if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
+  } else if (FALLOW_IDX === newMode) {
+    secFallowFixupEligible = pendingTimeCat[FALLOW_IDX];
+  }
   updateTotals();
   settings.cur_mode = newMode;
   E.showMenu();
@@ -747,16 +768,20 @@ function fixLateStart(sec) {
 }
 
 function pickLateStartAmt(back) {
-  let submenu = [ { title: 'By 1 min', onchange: () => fixLateStart(MIN)} ];
+  let submenu = [ { title: 'As far as possible', onchange: () => fixLateStart(MAX_SEC)} ];
   submenu[""] = { title: 'Move start earlier', back: back };
-  // TODO: Limit to actual possibilities?
-  let arrMinOptions = [];
+  let poss = lateStartAdjustments(pendingTimeCat, settings.cur_mode, prevSpentMode, MAX_SEC);
+  let secsAvail = poss[0], arrMinOptions = [];
+  if (secsAvail >= MIN) {
+    submenu.push({ title: 'By 1 min', onchange: () => fixLateStart(MIN)});
   for (let i = 2; i < 10; i++) arrMinOptions.push(i);
   for (let i = 10; i <= 60; i+= 5) arrMinOptions.push(i);
   for (let j = 0; j < arrMinOptions.length; j++) {
     let secsDesired = arrMinOptions[j] * MIN;
+      if (secsDesired > secsAvail) break;
     submenu.push({ title: 'By ' + arrMinOptions[j] + ' mins',
                     onchange: () => fixLateStart(secsDesired)});
+    }
   }
   E.showMenu(submenu);
   inMenu = true;
