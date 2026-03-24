@@ -533,9 +533,11 @@ function drawAllSegments() {
     start += decenter + 5;
   }
 
-  var fallowScale = Math.round(totalMin / 4);
-  var fallowAmt = getMin(FALLOW_IDX) * settings.fallow_denominator;
-  if (drawIfChanged(getGaugeSpans(fallowScale * 1.5, fallowAmt, fallowScale), FALLOW_IDX, 1)) {
+  // Display a quarter circle
+  const fallowScale = Math.round(totalMin / 4), lowCenterStart = fallowScale * 1.5;
+  // Only show up to half a day, but at higher precision
+  var fallowAmt = Math.min(Math.ceil(pendingTimeCat[FALLOW_IDX] * 2 / MIN), fallowScale);
+  if (drawIfChanged(getGaugeSpans(lowCenterStart, fallowAmt, fallowScale), FALLOW_IDX, 1)) {
     anyChanged = true;
   }
 
@@ -774,13 +776,13 @@ function pickLateStartAmt(back) {
   let secsAvail = poss[0], arrMinOptions = [];
   if (secsAvail >= MIN) {
     submenu.push({ title: 'By 1 min', onchange: () => fixLateStart(MIN)});
-  for (let i = 2; i < 10; i++) arrMinOptions.push(i);
-  for (let i = 10; i <= 60; i+= 5) arrMinOptions.push(i);
-  for (let j = 0; j < arrMinOptions.length; j++) {
-    let secsDesired = arrMinOptions[j] * MIN;
+    for (let i = 2; i < 10; i++) arrMinOptions.push(i);
+    for (let i = 10; i <= 60; i+= 5) arrMinOptions.push(i);
+    for (let j = 0; j < arrMinOptions.length; j++) {
+      let secsDesired = arrMinOptions[j] * MIN;
       if (secsDesired > secsAvail) break;
-    submenu.push({ title: 'By ' + arrMinOptions[j] + ' mins',
-                    onchange: () => fixLateStart(secsDesired)});
+      submenu.push({ title: 'By ' + arrMinOptions[j] + ' mins',
+                      onchange: () => fixLateStart(secsDesired)});
     }
   }
   E.showMenu(submenu);
