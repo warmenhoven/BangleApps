@@ -1,6 +1,7 @@
 (function(back) {
   var needsNewLogFile = false;
   var pendingTimeCat = null; // XXX: Slight hack; only populated in app.js
+  const firstDayOfWeek = (storage.readJSON("setting.json", true) || {}).firstDayOfWeek || 0;
   // #region XXX: Ensure these are kept in sync between settings.js and app.js
   const storage = require('Storage');
   function readSettings() {
@@ -174,6 +175,18 @@
           value: 0 | category.target_min, min: 15, max: 600, step: 15, wrap: true,
           onchange: v => {
             category.target_min = v;
+            saveSettings(settings);
+          },
+        },
+        'Adapt to Week': {
+          value: category.adapt_to_week ?? false,
+          onchange: n => {
+            category.adapt_to_week = n;
+            if (n && !category.sec_this_week) {
+              let daysBackfill = new Date().getDay() - firstDayOfWeek;
+              let secBackfill = daysBackfill * category.target_min * 60;
+              category.sec_this_week = secBackfill;
+            }
             saveSettings(settings);
           },
         },

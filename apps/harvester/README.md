@@ -3,6 +3,7 @@
 >Digital clock with large segmented ring gauges to show accumulated fruitful time 
 >spent by category, and “fallow” rest time available, as well as over-rested time
 
+## Overview
 The concept of this clock is to give an always-visible summary of the fruitfulness 
 of your day so far in a few broad categories, as well as time spent in balanced 
 or excessive rest. At any moment, it’s accumulating time spent in one category or 
@@ -29,11 +30,19 @@ each of three divergent categories I set up.)
 
 ![](divergent.png)
 
+## Configuration
 You can configure categories from the App Loader’s web interface using the floppy 
 disk icon near the favorite/heart, or from the watch’s normal settings, although 
 the latter can’t currently set category names, so it will just put in placeholders. 
 Other settings are all handled from the watch currently.
 
+If you want to focus more on your week as a whole, you can enable target adaptation 
+in Settings for individual fruitful categories. This will sum up your total 
+progress so far in a week and increase or decrease your relevant targets so you 
+can smooth out daily variations and achieve the overall target for the week if 
+you hit the target on the last day.
+
+## Usage Details
 Switch modes by using the three corner buttons. If you realize you should have 
 switched sooner, tap the correct button again and scroll through the menu if 
 needed to find the last option, `(Fix start...)`. This will let you select the 
@@ -56,6 +65,7 @@ All times reset at the end of the day, which is currently assumed to be 3 AM
 local. Total times for each category will be logged into CSVs by month (with new 
 files generated when you change categories).
 
+## Credits
 Written by: [Nathan Tuggy](https://github.com/tuggyne). For support and discussion, 
 please post in [this fork’s issues](https://github.com/TuggyNE/BangleApps/issues).
 
