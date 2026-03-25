@@ -45,6 +45,9 @@ a divergent mode, and also every few minutes after that. It will also buzz in a
 hopefully more pleasant way when you've hit the target for a given category of 
 fruitfulness.
 
+If you switch back to a fruitful mode before the fallow buffer runs out, it will 
+be counted in the daily log under “Early Switches”.
+
 There is one slot in the upper middle for a clock-info gauge, which you can choose 
 by tapping on it to highlight and using swipes left and right for lists, up and 
 down for items (standard behavior). It will not include any non-gauge items.

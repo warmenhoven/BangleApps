@@ -83,7 +83,7 @@ function normalizeSettings(s) {
 }
 function denormalizeSettings(s, pendingTimeCat) {
   delete s.hr_12; // TODO: Allow setting this independently
-  if (pendingTimeCat){
+  if (pendingTimeCat) {
     for (let i = 1; i < s.fruitful.length; i++) {
       s.fruitful[i].sec_today = pendingTimeCat[i];
     }

@@ -31,9 +31,9 @@
   function logHeader() {
     var cats = settings.fruitful.slice(1).concat(
       settings.decentering.slice(1).reverse()
-    ).map(c=>c.title);
+    ).map(c=>c.title.includes(',') ? '"' + c.title + '"' : c.title);
     // TODO: Include targets? Probably requires triggering changeovers more often
-    return 'Date,' + cats.join(',') + "\n";
+    return 'Date,Early Switches,' + cats.join(',') + "\n";
   }
 
   function logStartNew(prevList) {

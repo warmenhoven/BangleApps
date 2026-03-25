@@ -32,9 +32,9 @@ function logCurFilenames() {
 function logHeader() {
   var cats = settings.fruitful.slice(1).concat(
     settings.decentering.slice(1).reverse()
-  ).map(c=>c.title);
+  ).map(c=>c.title.includes(',') ? '"' + c.title + '"' : c.title);
   // TODO: Include targets? Probably requires triggering changeovers more often
-  return 'Date,' + cats.join(',') + "\n";
+  return 'Date,Early Switches,' + cats.join(',') + "\n";
 }
 
 function logStartNew(prevList) {
@@ -138,18 +138,6 @@ function denormalizeSettings(s, pendingTimeCat) {
     delete s.total_sec_by_cat;
   }
   return s;
-}
-
-function ym(date) {
-  return date.toLocalISOString().substring(0, 7);
-}
-function logCurFilenameBase() {
-  return `harvester-${ym(new Date())}`;
-}
-
-/** @returns Sorted list of disjoint filenames for historical logs, most current last */
-function logCurFilenames() {
-  return storage.list(new RegExp(logCurFilenameBase() + `.*\.csv`), { sf: true }).sort();
 }
 // #endregion
 
@@ -421,6 +409,12 @@ function loadRuntimeSettings() {
   if (settings.DEBUGGING) DEBUGGING = true;
 
   settings.hr_12 = (global_settings["12hour"] === undefined ? false : global_settings["12hour"]);
+
+  if (null == settings.early_switches) {
+    // Migrate log
+    logStartNew(logCurFilenames());
+    settings.early_switches = 0;
+  }
 
   settings.last_reset = settings.last_reset || ymd(new Date());
   updateDerivedRingVars();
@@ -729,6 +723,8 @@ function setCurMode(newMode) {
   //log_debug('Setting cur_mode to ' + newMode);
   prevSpentMode = settings.cur_mode;
   if (prevSpentMode >= FIRST_FRUITFUL_IDX) lastBuzzCheck = new Date().valueOf();
+  const earlySwitch = prevSpentMode < FIRST_FRUITFUL_IDX &&
+                      newMode >= FIRST_FRUITFUL_IDX && !tsFallowRanDry;
   if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX && tsFallowRanDry) {
     secFallowFixupEligible -= Math.round((curMs() - tsFallowRanDry) / 1000);
     if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
@@ -742,8 +738,12 @@ function setCurMode(newMode) {
   updateTotals();
   settings.cur_mode = newMode;
   E.showMenu();
-  saveSettings(settings);
   restoreCachedFace();
+  if (earlySwitch) {
+    settings.early_switches++;
+    drawCurSubMode('Early!');
+  }
+  saveSettings(settings);
 }
 
 function fixLateStart(sec) {
@@ -844,7 +844,8 @@ function logWriteCurTotals() {
   } else {
     sf = storage.open(at(candidates, -1), 'a');
   }
-  sf.write(settings.last_reset + ',' + pendingTimeCat.slice(FIRST_FRUITFUL_IDX).join(',') + "\n");
+  sf.write(settings.last_reset + ',' + settings.early_switches + ',' + 
+           pendingTimeCat.slice(FIRST_FRUITFUL_IDX).join(',') + "\n");
 }
 
 function resetTotals() {
@@ -852,6 +853,7 @@ function resetTotals() {
   g.setColor(g.theme.bg).fillCircle(W / 2, H / 2, radiusOuterRing - ringIterOffset);
   clearDrawingCache();
   logWriteCurTotals();
+  settings.early_switches = 0;
   pendingTimeCat.fill(0);
   settings.cur_mode = FALLOW_IDX;
   totals_updated_at = now;
