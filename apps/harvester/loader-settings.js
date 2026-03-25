@@ -118,14 +118,14 @@ function registerChange(affectsLog) {
   if (true === affectsLog) needsNewLogFile = true;
 }
 
-function parseCategory(elem) {
+function parseCategory(elem, arrRef) {
   let color = elem.querySelector('*[name=color]').value;
-  let iColor = color_options.indexOf(color);
-  var cat = {
-    title: elem.querySelector('input[name=title]').value,
-    color: color, fg: fg_code[iColor], gy: gy_code[iColor],
-    id: elem.dataset.id,
-  };
+  let iColor = color_options.indexOf(color), id = new Number(elem.dataset.id);
+  let cat = arrRef?.find(c => c.id == id) || { id: id };
+  cat.title = elem.querySelector('input[name=title]').value;
+  cat.color = color;
+  cat.fg = fg_code[iColor];
+  cat.gy = gy_code[iColor];
   let targetMin = elem.querySelector('input[name=target_min]')?.value;
   if (targetMin) cat.target_min = 0 | targetMin;
   return cat;
@@ -134,13 +134,15 @@ function parseCategory(elem) {
 function saveToBangle() {
   Util.showModal('Saving settings...');
   console.log('Settings before save', settings);
+  let oldFruitful = settings.fruitful;
   settings.fruitful = [{}];
   for (let fElem of fruitfulElement.children) {
-    settings.fruitful.push(parseCategory(fElem));
+    settings.fruitful.push(parseCategory(fElem, oldFruitful));
   }
+  let oldDecentering = settings.decentering;
   settings.decentering = [{}];
   for (let dElem of decenteringElement.children) {
-    settings.decentering.push(parseCategory(dElem));
+    settings.decentering.push(parseCategory(dElem, oldDecentering));
   }
 
   if (needsNewLogFile) {

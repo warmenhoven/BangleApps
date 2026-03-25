@@ -369,6 +369,22 @@ function autoGray(category) {
     return g.theme.fg;
   }
 }
+
+function setTargets() {
+  for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
+    let fruitful = settings.fruitful[i];
+    if (fruitful.adapt_to_week) {
+      let secLeft = fruitful.target_min * MIN * 7 - fruitful.sec_this_week;
+      let daysLeft = 7 - new Date().getDay();
+      let tgt = E.clip(Math.ceil(secLeft / daysLeft / MIN), 0, 2 * fruitful.target_min);
+      log_debug(`${fruitful.sec_this_week}s already, ${secLeft} left in ${daysLeft}d: ${tgt}`);
+      targetMinFCat[i] = tgt;
+    } else {
+      targetMinFCat[i] = fruitful.target_min;
+    }
+  }
+}
+
 function updateDerivedRingVars() {
   totalMin = 0;
   var fixedPosLen = settings.fruitful.length;
@@ -380,6 +396,8 @@ function updateDerivedRingVars() {
   modeCat = new Array(displayedLen);
   pendingTimeCat = new Uint16Array(displayedLen);
 
+  setTargets();
+
   palCat[FALLOW_IDX] = palette(autoGray('#220'), '#860');
   // TODO: Draw out a nice circle and arrows properly
   modeCat[FALLOW_IDX] = '» × «';
@@ -387,8 +405,7 @@ function updateDerivedRingVars() {
   for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
     let fruitful = settings.fruitful[i];
     startFCat[i] = totalMin;
-    targetMinFCat[i] = fruitful.target_min;
-    totalMin += fruitful.target_min;
+    totalMin += targetMinFCat[i];
     endFCat[i] = totalMin;
     //log_debug('Setting palette for ' + fruitful.title);
     palCat[i] = palette(autoGray(fruitful), g.toColor(fruitful.fg));
@@ -483,7 +500,7 @@ function drawIfChanged(gaugeSpans, idxCat, idxRing) {
               ' from ' + prevSpans.mid + ' to ' + gaugeSpans.mid);
     drawSegment(prevSpans.mid, gaugeSpans.mid, gaugeSpans.mid, pal, idxRing);
   } else {
-    log_debug("Redrew part #" + idxCat + " in ring #" + idxRing);
+    log_debug(`Redrew part #${idxCat} in ring #${idxRing} (${gaugeSpans.start}-${gaugeSpans.mid}-${gaugeSpans.end})`);
     drawSegment(gaugeSpans.start, gaugeSpans.mid, gaugeSpans.end, pal, idxRing);
   }
   return true;
@@ -724,7 +741,8 @@ function setCurMode(newMode) {
   prevSpentMode = settings.cur_mode;
   if (prevSpentMode >= FIRST_FRUITFUL_IDX) lastBuzzCheck = new Date().valueOf();
   const earlySwitch = prevSpentMode < FIRST_FRUITFUL_IDX &&
-                      newMode >= FIRST_FRUITFUL_IDX && !tsFallowRanDry;
+                      newMode >= FIRST_FRUITFUL_IDX && pendingTimeCat[FALLOW_IDX] > 0;
+  if (earlySwitch) log_debug(`Switching early with tsFallowRanDry at ${tsFallowRanDry}`);
   if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX && tsFallowRanDry) {
     secFallowFixupEligible -= Math.round((curMs() - tsFallowRanDry) / 1000);
     if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
@@ -854,6 +872,12 @@ function resetTotals() {
   clearDrawingCache();
   logWriteCurTotals();
   settings.early_switches = 0;
+  for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
+    if (settings.fruitful[i].adapt_to_week) {
+      settings.fruitful[i].sec_this_week += pendingTimeCat[i];
+    }
+  }
+  setTargets();
   pendingTimeCat.fill(0);
   settings.cur_mode = FALLOW_IDX;
   totals_updated_at = now;
