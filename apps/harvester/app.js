@@ -4,6 +4,7 @@ var settings;
 
 // #region XXX: Ensure these are kept in sync between settings.js and app.js
 const storage = require('Storage');
+const global_settings = storage.readJSON("setting.json", true) || {};
 function readSettings() {
   return storage.readJSON(SETTINGS_FILE, 1) || {};
 }
@@ -51,6 +52,7 @@ function logStartNew(prevList) {
 // #endregion
 // #region XXX: Ensure these are kept in sync between settings.js, loader-settings.js, and app.js
 const SETTINGS_FILE = "harvester.json";
+const firstDayOfWeek = global_settings.firstDayOfWeek || 0;
 function getDefaultSettings() {
   var id1 = Math.round(Date.now()), id2 = id1 + 1; // XXX: Use proper UUIDs, probably with TS
   return {
@@ -91,6 +93,12 @@ function normalizeCat(cat, i, _arr) {
       normalizeCat._seq = 0;
     }
     cat.id = Math.round(Date.now()) + normalizeCat._seq++;
+  }
+  if (null == cat.sec_this_week && cat.target_min) {
+    let daysBackfill = new Date().getDay() - firstDayOfWeek;
+    cat.sec_this_week = daysBackfill * cat.target_min * 60;
+  } else if (null == cat.sec_this_week) {
+    cat.sec_this_week = 0;
   }
   return cat;
 }
@@ -169,7 +177,6 @@ function reloadFromWeb() {
   return true;
 }
 
-const global_settings = storage.readJSON("setting.json", true) || {};
 const H = g.getHeight();
 const W = g.getWidth();
 
@@ -371,18 +378,17 @@ function autoGray(category) {
 }
 
 function setTargets() {
-  for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
-    let fruitful = settings.fruitful[i];
+  settings.fruitful.forEach((fruitful, i, _arr) => {
     if (fruitful.adapt_to_week) {
       let secLeft = fruitful.target_min * MIN * 7 - fruitful.sec_this_week;
       let daysLeft = 7 - new Date().getDay();
       let tgt = E.clip(Math.ceil(secLeft / daysLeft / MIN), 0, 2 * fruitful.target_min);
       log_debug(`${fruitful.sec_this_week}s already, ${secLeft} left in ${daysLeft}d: ${tgt}`);
       targetMinFCat[i] = tgt;
-    } else {
+    } else if (fruitful.target_min) {
       targetMinFCat[i] = fruitful.target_min;
     }
-  }
+  });
 }
 
 function updateDerivedRingVars() {
@@ -402,22 +408,21 @@ function updateDerivedRingVars() {
   // TODO: Draw out a nice circle and arrows properly
   modeCat[FALLOW_IDX] = '» × «';
   pendingTimeCat[FALLOW_IDX] = settings.fallow_buffer;
-  for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
-    let fruitful = settings.fruitful[i];
+  settings.fruitful.forEach((fruitful, i, _arr) => {
+    if (!fruitful.title) return;
     startFCat[i] = totalMin;
     totalMin += targetMinFCat[i];
     endFCat[i] = totalMin;
-    //log_debug('Setting palette for ' + fruitful.title);
     palCat[i] = palette(autoGray(fruitful), g.toColor(fruitful.fg));
     modeCat[i] = fruitful.title;
     setAt(pendingTimeCat, i, fruitful.sec_today);
-  }
-  for (let i = -FIRST_DECENTER_IDX; i < settings.decentering.length; i++) {
-    let decentering = settings.decentering[i];
+  });
+  settings.decentering.forEach((decentering, i, _arr) => {
+    if (!decentering.title) return;
     setAt(palCat, -i, palette(autoGray(decentering), g.toColor(decentering.fg)));
     setAt(modeCat, -i, decentering.title);
     setAt(pendingTimeCat, -i, decentering.sec_today);
-  }
+  });
 }
 
 function loadRuntimeSettings() {
@@ -500,7 +505,8 @@ function drawIfChanged(gaugeSpans, idxCat, idxRing) {
               ' from ' + prevSpans.mid + ' to ' + gaugeSpans.mid);
     drawSegment(prevSpans.mid, gaugeSpans.mid, gaugeSpans.mid, pal, idxRing);
   } else {
-    log_debug(`Redrew part #${idxCat} in ring #${idxRing} (${gaugeSpans.start}-${gaugeSpans.mid}-${gaugeSpans.end})`);
+    log_debug('Redrew part #' + idxCat + ' in ring #' + idxRing +
+              ' (' + gaugeSpans.start + '-' + gaugeSpans.mid + '-' + gaugeSpans.end + ')');
     drawSegment(gaugeSpans.start, gaugeSpans.mid, gaugeSpans.end, pal, idxRing);
   }
   return true;
@@ -872,10 +878,14 @@ function resetTotals() {
   clearDrawingCache();
   logWriteCurTotals();
   settings.early_switches = 0;
-  for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
-    if (settings.fruitful[i].adapt_to_week) {
-      settings.fruitful[i].sec_this_week += pendingTimeCat[i];
+  if (now.getDay() === firstDayOfWeek) {
+    for (const cat of settings.fruitful.concat(settings.decentering)) {
+      if (null != cat.sec_this_week) cat.sec_this_week = 0;
     }
+  } else {
+    settings.fruitful.concat(settings.decentering).forEach((cat, i, _arr) => {
+      if (null != cat.sec_this_week) cat.sec_this_week += pendingTimeCat[i];
+    });
   }
   setTargets();
   pendingTimeCat.fill(0);

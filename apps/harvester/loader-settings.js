@@ -1,14 +1,19 @@
-/* global document, Util, Puck, Set */
+/* global document, Util, Puck, Set, Intl, navigator */
 /* exported denormalizeSettings */
 
-var fruitfulElement = document.querySelector("#fruitful tbody");
-var decenteringElement = document.querySelector("#decentering tbody");
+var fruitfulElement = document.getElementById("fruitful");
+var decenteringElement = document.getElementById("decentering");
 var btnSave = document.getElementById("btnSave");
 var btnCancel = document.getElementById("btnCancel");
 var settings = {};
 
+// XXX: Fill in needed var structure for compat
+const weekInfo = new Intl.Locale(navigator.language).getWeekInfo();
+const global_settings = { firstDayOfWeek: weekInfo.firstDay % 7 };
+
 // #region XXX: Ensure these are kept in sync between settings.js, loader-settings.js, and app.js
 const SETTINGS_FILE = "harvester.json";
+const firstDayOfWeek = global_settings.firstDayOfWeek || 0;
 function getDefaultSettings() {
   var id1 = Math.round(Date.now()), id2 = id1 + 1; // XXX: Use proper UUIDs, probably with TS
   return {
@@ -49,6 +54,12 @@ function normalizeCat(cat, i, _arr) {
       normalizeCat._seq = 0;
     }
     cat.id = Math.round(Date.now()) + normalizeCat._seq++;
+  }
+  if (null == cat.sec_this_week && cat.target_min) {
+    let daysBackfill = new Date().getDay() - firstDayOfWeek;
+    cat.sec_this_week = daysBackfill * cat.target_min * 60;
+  } else if (null == cat.sec_this_week) {
+    cat.sec_this_week = 0;
   }
   return cat;
 }
@@ -101,14 +112,14 @@ function denormalizeSettings(s, pendingTimeCat) {
 
 // #region XXX: Ensure these are kept in sync between settings.js and loader-settings.js
 const color_options = [
-      'Lavender', 'Purple', 'Deep Blue', 'Medium Blue', 'Cyan', 'Dark Green', 'Green',
-      'Yellow', 'Orange', 'Red', 'Brick', 'Gray', 'Blk/Wht' ];
+  'Lavender', 'Purple', 'Deep Blue', 'Medium Blue', 'Cyan', 'Dark Green', 'Green',
+  'Yellow', 'Orange', 'Red', 'Brick', 'Gray', 'Blk/Wht'];
 const fg_code = [
-      '#f0f', '#80f', '#00f', '#08f', '#0ff', '#080', '#0f0',
-      '#ff0', '#f80', '#f00', '#800', '#888', null ];
+  '#f0f', '#80f', '#00f', '#08f', '#0ff', '#080', '#0f0',
+  '#ff0', '#f80', '#f00', '#800', '#888', null];
 const gy_code = [
-      '#202', '#202', '#002', '#022', '#022', '#020', '#020',
-      '#220', '#220', '#200', '#200', '#222', null ];
+  '#202', '#202', '#002', '#022', '#022', '#020', '#020',
+  '#220', '#220', '#200', '#200', '#222', null];
 // #endregion
 
 var needsNewLogFile = false;
@@ -136,21 +147,21 @@ function saveToBangle() {
   console.log('Settings before save', settings);
   let oldFruitful = settings.fruitful;
   settings.fruitful = [{}];
-  for (let fElem of fruitfulElement.children) {
+  for (let fElem of fruitfulElement.querySelectorAll('tbody')) {
     settings.fruitful.push(parseCategory(fElem, oldFruitful));
   }
   let oldDecentering = settings.decentering;
   settings.decentering = [{}];
-  for (let dElem of decenteringElement.children) {
+  for (let dElem of decenteringElement.querySelectorAll('tbody')) {
     settings.decentering.push(parseCategory(dElem, oldDecentering));
   }
 
   if (needsNewLogFile) {
     console.log('Writing new log file for altered category list');
-    Puck.eval('logStartNew(logCurFilenames()) != undefined', () => {});
+    Puck.eval('logStartNew(logCurFilenames()) != undefined', () => { });
     needsNewLogFile = false;
   }
-  
+
   Util.writeStorage(SETTINGS_FILE, JSON.stringify(settings), _data => {
     Puck.eval('reloadFromWeb()', () => {
       btnSave.disabled = true;
@@ -166,7 +177,7 @@ function loadFromBangle() {
   Puck.eval('logCurFilenames()', filenames => {
     let ul = document.getElementById('logs');
     for (let f of filenames) {
-      let li = document.createElement('li'),filename = f;
+      let li = document.createElement('li'), filename = f;
       // TODO: Add deletion
       li.textContent = filename.replace(/^harvester-|\.csv$/g, '');
       li.style.cursor = 'pointer';
@@ -181,13 +192,15 @@ function loadFromBangle() {
     }
     Util.readStorageJSON(SETTINGS_FILE, data => {
       settings = normalizeSettings(data);
-      fruitfulElement.innerHTML = '';
+      fruitfulElement.querySelectorAll('tbody').forEach(e => e.remove());
+      const totalMin = settings.fruitful.reduce((sum, c, _i, _a) =>
+        sum + (c.target_min || 0), 0);
       for (let cat of settings.fruitful) {
-        if (cat.title || cat.id) fruitfulElement.appendChild(createCategoryEdit(cat));
+        if (cat.title || cat.id) fruitfulElement.appendChild(createCategoryEdit(cat, totalMin));
       }
-      decenteringElement.innerHTML = '';
+      decenteringElement.querySelectorAll('tbody').forEach(e => e.remove());
       for (let cat of settings.decentering) {
-        if (cat.title || cat.id) decenteringElement.appendChild(createCategoryEdit(cat));
+        if (cat.title || cat.id) decenteringElement.appendChild(createCategoryEdit(cat, totalMin));
       }
 
       btnSave.disabled = true;
@@ -209,27 +222,82 @@ function deleteCategory(evt) {
   registerChange(true);
 }
 
-function createCategoryEdit({id, title, color, target_min}) {
-  let elemCat = document.createElement('tr');
+function hrs(min) {
+  const rounded = Math.round(min * 4 / 60) / 4, ret = Math.floor(rounded).toString();
+  switch (rounded % 1) {
+    case 0: return ret;
+    case 0.25: return ret + '¼';
+    case 0.50: return ret + '½';
+    case 0.75: return ret + '¾';
+  }
+}
+
+function calcMeter({ sec_this_week, sec_today, target_min }, totalMin) {
+  const minThisWeek = Math.round(((sec_this_week ?? 0) + (sec_today ?? 0)) / 60);
+  const days = 1 + new Date().getDay();
+  if (target_min) {
+    const minWeekTarget = Math.ceil(target_min * 7);
+    const done = minThisWeek >= minWeekTarget;
+    const minTargetSoFar = Math.ceil(target_min * days);
+    const low = Math.floor(target_min * (days - 1));
+    const high = done ? minTargetSoFar * 1.2 : minTargetSoFar;
+    return {
+      minThisWeek, low, high,
+      max: minWeekTarget * 1.3,
+      optimum: minTargetSoFar + 1,
+      meterTitle: minTargetSoFar >= 120 ? 
+                  `${hrs(minThisWeek)} hrs of ${hrs(minTargetSoFar)} so far` :
+                  `${minThisWeek} min of ${minTargetSoFar} so far`,
+    };
+  }
+  else {
+    // TODO: Make the baseline & high more principled for overages
+    const minBaseline = totalMin / settings.fallow_denominator / 20;
+    const high = Math.ceil(minBaseline * 5 * days);
+    const low = Math.ceil(minBaseline * days);
+    return {
+      minThisWeek, low, high,
+      max: high * 2,
+      optimum: 0,
+      meterTitle: `${minThisWeek} min so far`,
+    };
+  }
+}
+
+function createCategoryEdit(cat, totalMin) {
+  const { id, title, color, target_min, adapt_to_week } = cat;
+  const elemCat = document.createElement('tbody');
   elemCat.dataset.id = id;
-  let iColor = color_options.indexOf(color);
+  const iColor = color_options.indexOf(color);
   let colorList = '';
   for (let i = 0; i < color_options.length; i++) {
     let sel = iColor === i ? 'selected' : '';
     colorList += `<option style='background-color: ${fg_code[i]};' ${sel}>${color_options[i]}</option>`;
   }
   let h = `
-  <td><select name=color onchange="registerChange()">${colorList}</select></td>
+  <tr>
+  <td><select name=color onchange="registerChange()" style="padding: 3px;">${colorList}</select></td>
   <td><input name=title type=text minlength=1 maxlength=40 value='${title}' oninput="registerChange()" /></td>
   `;
   if (target_min) {
     h += `
+    <td style="text-align: center;">
+      <input name=adapt_to_week type=checkbox
+             value='${!!adapt_to_week}' onchange="registerChange()" /></td>
     <td><input list=targets name=target_min type=number min=1 max=720
                value='${target_min}' onchange="registerChange()" /></td>
     `;
   }
+  const { minThisWeek, max, high, low, optimum, meterTitle } = calcMeter(cat, totalMin);
   h += `
   <td><button onclick="deleteCategory(event)">X</button></td>
+  </tr>
+  <tr>
+  <td colspan="5">
+    <meter max=${max} low=${low} optimum=${optimum} high=${high} style="width: 100%;"
+           value=${minThisWeek} title="${meterTitle}"></meter>
+  </td>
+  </tr>
   `;
   elemCat.innerHTML = h;
   return elemCat;
@@ -237,26 +305,34 @@ function createCategoryEdit({id, title, color, target_min}) {
 
 function addNewCategory(isFruitful) {
   let elemContainer = isFruitful ? fruitfulElement : decenteringElement;
-  let i = elemContainer.children.length + 1;
-  let allCatElems = Array.from(fruitfulElement.children).concat(Array.from(decenteringElement.children));
+  let i = elemContainer.querySelectorAll('tbody').length + 1;
+  const fruitfulElems = Array.from(fruitfulElement.querySelectorAll('tbody'));
+  const decenteringElems = Array.from(decenteringElement.querySelectorAll('tbody'));
+  let allCatElems = fruitfulElems.concat(decenteringElems);
   let usedColors = new Set(allCatElems.map(cat => parseCategory(cat).color));
   let availColors = color_options.filter(color => !usedColors.has(color));
   let newColor = availColors[0] ||
-                 color_options[(Math.floor(Math.random() * color_options.length))];
-  let skeleton = {title: 'Category ' + i, color: newColor};
+    color_options[(Math.floor(Math.random() * color_options.length))];
+  let skeleton = {
+    title: 'Category ' + i,
+    color: newColor,
+    id: Math.round(Date.now()),
+  };
   if (isFruitful) skeleton.target_min = 15;
-  elemContainer.appendChild(createCategoryEdit(i, skeleton));
+  let totalMin = fruitfulElems.reduce((sum, elem, _i, _a) =>
+    sum + (parseCategory(elem).target_min || 0), 0);
+  elemContainer.appendChild(createCategoryEdit(skeleton, totalMin));
   registerChange(true);
 }
 
 btnSave.addEventListener("click", saveToBangle);
 btnCancel.addEventListener("click", loadFromBangle);
-document.getElementById('addFruitful').addEventListener("click", () => addNewCategory(true));
-document.getElementById('addDecentering').addEventListener("click", () => addNewCategory(false));
+document.getElementById('addFruitful').addEventListener("click",
+                                                   () => addNewCategory(true));
+document.getElementById('addDecentering').addEventListener("click",
+                                                   () => addNewCategory(false));
 // Called by app loader on start
 /* exported onInit */
 function onInit() {
   loadFromBangle();
 }
-
-// TODO: Add buttons below each section to add new categories
