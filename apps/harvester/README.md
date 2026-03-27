@@ -51,7 +51,7 @@ if there’s a way to make that work.
 
 The clock will buzz with increasing urgency as you run down the fallow buffer in 
 a divergent mode, and also every few minutes after that. It will also buzz in a 
-hopefully more pleasant way when you've hit the target for a given category of 
+hopefully more pleasant way when you’ve hit the target for a given category of 
 fruitfulness.
 
 If you switch back to a fruitful mode before the fallow buffer runs out, it will 
@@ -64,6 +64,16 @@ down for items (standard behavior). It will not include any non-gauge items.
 All times reset at the end of the day, which is currently assumed to be 3 AM 
 local. Total times for each category will be logged into CSVs by month (with new 
 files generated when you change categories).
+
+From the App Loader’s web interface (using the floppy disk icon near the 
+favorite/heart), you can look at how your cumulative time per category compares 
+to your targets through the week. If you’re well behind your target, the meter 
+should show up as red; if you’re only a bit behind, it should be yellow; if 
+you’re on track or a little ahead, it will be green; but if you’ve gone more 
+than 20% over your target it should be yellow again. Similarly, if you’ve spent 
+less than a small fraction of your overall fallow buffer in excessive divergent 
+time, it will show up as green; a larger fraction (currently between 5% and 25%), 
+yellow; otherwise, red.
 
 ## Credits
 Written by: [Nathan Tuggy](https://github.com/tuggyne). For support and discussion, 

@@ -1,13 +1,13 @@
 (function(back) {
   var needsNewLogFile = false;
   var pendingTimeCat = null; // XXX: Slight hack; only populated in app.js
-  const firstDayOfWeek = (storage.readJSON("setting.json", true) || {}).firstDayOfWeek || 0;
   // #region XXX: Ensure these are kept in sync between settings.js and app.js
   const storage = require('Storage');
+  const global_settings = storage.readJSON("setting.json", true) || {};
   function readSettings() {
     return storage.readJSON(SETTINGS_FILE, 1) || {};
   }
-  function writeSettings (s) {
+  function writeSettings(s) {
     storage.write(SETTINGS_FILE, s);
   }
   function loadSettings() {
@@ -51,6 +51,7 @@
   // #endregion
   // #region XXX: Ensure these are kept in sync between settings.js, loader-settings.js, and app.js
   const SETTINGS_FILE = "harvester.json";
+  const firstDayOfWeek = global_settings.firstDayOfWeek || 0;
   function getDefaultSettings() {
     var id1 = Math.round(Date.now()), id2 = id1 + 1; // XXX: Use proper UUIDs, probably with TS
     return {
@@ -91,6 +92,12 @@
         normalizeCat._seq = 0;
       }
       cat.id = Math.round(Date.now()) + normalizeCat._seq++;
+    }
+    if (null == cat.sec_this_week && cat.target_min) {
+      let daysBackfill = new Date().getDay() - firstDayOfWeek;
+      cat.sec_this_week = daysBackfill * cat.target_min * 60;
+    } else if (null == cat.sec_this_week) {
+      cat.sec_this_week = 0;
     }
     return cat;
   }
@@ -143,14 +150,14 @@
 
   // #region XXX: Ensure these are kept in sync between settings.js and loader-settings.js
   const color_options = [
-        'Lavender', 'Purple', 'Deep Blue', 'Medium Blue', 'Cyan', 'Dark Green', 'Green',
-        'Yellow', 'Orange', 'Red', 'Brick', 'Gray', 'Blk/Wht' ];
+    'Lavender', 'Purple', 'Deep Blue', 'Medium Blue', 'Cyan', 'Dark Green', 'Green',
+    'Yellow', 'Orange', 'Red', 'Brick', 'Gray', 'Blk/Wht'];
   const fg_code = [
-        '#f0f', '#80f', '#00f', '#08f', '#0ff', '#080', '#0f0',
-        '#ff0', '#f80', '#f00', '#800', '#888', null ];
+    '#f0f', '#80f', '#00f', '#08f', '#0ff', '#080', '#0f0',
+    '#ff0', '#f80', '#f00', '#800', '#888', null];
   const gy_code = [
-        '#202', '#202', '#002', '#022', '#022', '#020', '#020',
-        '#220', '#220', '#200', '#200', '#222', null ];
+    '#202', '#202', '#002', '#022', '#022', '#020', '#020',
+    '#220', '#220', '#200', '#200', '#222', null];
   // #endregion
 
   function showFruitfulMenu(curCategories) {
