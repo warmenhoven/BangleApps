@@ -23,7 +23,26 @@
       </thead>
       <tbody></tbody>
     </table>
+    <template id="fruitfulRow">
+      <tbody data-id="?">
+        <tr>
+          <td><select name="color" onchange="registerChange()" style="padding: 3px;"></select></td>
+          <td><input name="title" type="text" minlength="1" maxlength="40"
+                     oninput="registerChange()"></td>
+          <td style="text-align: center;">
+            <input name="adapt_to_week" type="checkbox" onchange="registerChange()">
+          </td>
+          <td><input list="targets" name="target_min" type="number" min="1" max="720"
+                     onchange="registerChange()"></td>
+          <td><button onclick="deleteCategory(event)" title="Delete">X</button></td>
+        </tr>
+        <tr>
+          <td colspan="5"><meter style="width: 100%;"></meter></td>
+        </tr>
+      </tbody>
+    </template>
     <button id="addFruitful">Add New Fruitful</button>
+
     <table id="decentering" class="my-2" style="width: 100%; padding-right: 12px;">
       <caption style="caption-side: top;">Divergent Categories</caption>
       <thead>
@@ -32,7 +51,21 @@
       </thead>
       <tbody></tbody>
     </table>
+    <template id="decenteringRow">
+      <tbody data-id="?">
+        <tr>
+          <td><select name="color" onchange="registerChange()" style="padding: 3px;"></select></td>
+          <td><input name="title" type="text" minlength="1" maxlength="40"
+                     oninput="registerChange()"></td>
+          <td><button onclick="deleteCategory(event)" title="Delete">X</button></td>
+        </tr>
+        <tr>
+          <td colspan="3"><meter style="width: 100%;"></meter></td>
+        </tr>
+      </tbody>
+    </template>
     <button id="addDecentering">Add New Divergent</button>
+    
     <div class="my-2">
       <button disabled class="btn btn-default" id="btnSave">Save</button>
       <button disabled class="btn btn-default" id="btnCancel">Cancel</button>
