@@ -266,40 +266,29 @@ function calcMeter({ sec_this_week, sec_today, target_min }, totalMin) {
 
 function createCategoryEdit(cat, totalMin) {
   const { id, title, color, target_min, adapt_to_week } = cat;
-  const elemCat = document.createElement('tbody');
-  elemCat.dataset.id = id;
+  const idTemplate = target_min ? 'fruitfulRow' : 'decenteringRow';
+  const elemCat = document.importNode(document.getElementById(idTemplate).content, true);
+  elemCat.querySelector('tbody').dataset.id = id;
   const iColor = color_options.indexOf(color);
   let colorList = '';
   for (let i = 0; i < color_options.length; i++) {
     let sel = iColor === i ? 'selected' : '';
     colorList += `<option style='background-color: ${fg_code[i]};' ${sel}>${color_options[i]}</option>`;
   }
-  let h = `
-  <tr>
-  <td><select name=color onchange="registerChange()" style="padding: 3px;">${colorList}</select></td>
-  <td><input name=title type=text minlength=1 maxlength=40 value='${title}' oninput="registerChange()" /></td>
-  `;
+  elemCat.querySelector('select[name=color]').innerHTML = colorList;
+  elemCat.querySelector('input[name=title]').value = title;
   if (target_min) {
-    h += `
-    <td style="text-align: center;">
-      <input name=adapt_to_week type=checkbox
-             value='${!!adapt_to_week}' onchange="registerChange()" /></td>
-    <td><input list=targets name=target_min type=number min=1 max=720
-               value='${target_min}' onchange="registerChange()" /></td>
-    `;
+    elemCat.querySelector('input[name=adapt_to_week]').checked = !!adapt_to_week;
+    elemCat.querySelector('input[name=target_min]').value = target_min;
   }
   const { minThisWeek, max, high, low, optimum, meterTitle } = calcMeter(cat, totalMin);
-  h += `
-  <td><button onclick="deleteCategory(event)">X</button></td>
-  </tr>
-  <tr>
-  <td colspan="5">
-    <meter max=${max} low=${low} optimum=${optimum} high=${high} style="width: 100%;"
-           value=${minThisWeek} title="${meterTitle}"></meter>
-  </td>
-  </tr>
-  `;
-  elemCat.innerHTML = h;
+  const meter = elemCat.querySelector('meter');
+  meter.max = max;
+  meter.high = high;
+  meter.optimum = optimum;
+  meter.low = low;
+  meter.value = minThisWeek;
+  meter.title = meterTitle;
   return elemCat;
 }
 
