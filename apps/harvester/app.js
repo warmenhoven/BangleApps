@@ -952,6 +952,8 @@ function queueDraw() {
   }, delay);
 }
 
+loadRuntimeSettings();
+
 // Stop updates when LCD is off, restart when on
 Bangle.on('lcdPower', on => {
   if (on) {
@@ -963,27 +965,15 @@ Bangle.on('lcdPower', on => {
   }
 });
 
-Bangle.setUI({
-  mode: 'clock',
-  btn: (btn) => {
-    // TODO: Handle eventual B3 appropriately
-    if (BANGLEJS2 || btn === 2) {
-      updateTotals();
-      saveSettings(settings);  // Retains data when leaving the face
-      Bangle.showLauncher();
-    }
-  },
-});
-
-loadRuntimeSettings();
-
-Bangle.loadWidgets();
-/*
- * we are not drawing the widgets as we are taking over the whole screen
- */
-widget_utils.hide();
-E.showMenu(); // Dumb hack to reduce first-time flickering
-redrawWholeFace();
+function clockBtn(btn) {
+  log_debug(`In clockBtn with btn=${btn}`);
+  // TODO: Handle eventual B3 appropriately
+  if (BANGLEJS2 || btn === 2) {
+    updateTotals();
+    saveSettings(settings); // Retains data when leaving the face
+    Bangle.showLauncher();
+  }
+}
 
 var clockInfo = require("clock_info");
 function eligibleClockInfoItems() {
@@ -1030,3 +1020,14 @@ curClockInfo = clockInfo.addInteractive(clockInfoItems, {
   x: CI_TEXT_X, y: CI_TEXT_Y, w: CI_TEXT_W, h: CI_TEXT_H, // For automatic tap detection
   draw: drawGaugeClockInfo
 });
+
+E.showMenu(); // Dumb hack to reduce first-time flickering
+
+setTimeout(() => redrawWholeFace(), 50);
+
+Bangle.setUI({mode: 'clock', btn: clockBtn});
+Bangle.loadWidgets();
+/*
+ * we are not drawing the widgets as we are taking over the whole screen
+ */
+widget_utils.hide();
