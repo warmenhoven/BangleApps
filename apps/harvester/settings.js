@@ -66,6 +66,9 @@
       ],
       hour_color: 'Green',
       hour_fg: '#0f0',
+      clock_info_color: 'Green',
+      clock_info_fg: '#0f0',
+      clock_info_gy: '#020',
       cur_mode: 0,
       last_reset: null,
       decentering: [
@@ -129,6 +132,9 @@
 
     s.hour_color = s.hour_color || def.hour_color;
     s.hour_fg = s.hour_fg || def.hour_fg;
+    s.clock_info_color = s.clock_info_color || def.clock_info_color;
+    s.clock_info_fg = s.clock_info_fg || def.clock_info_fg;
+    s.clock_info_gy = s.clock_info_gy || def.clock_info_gy;
     s.fallow_denominator = s.fallow_denominator || def.fallow_denominator;
     s.cur_mode = s.cur_mode || def.cur_mode;
     s.fallow_buffer = s.fallow_buffer || def.fallow_buffer;
@@ -295,12 +301,23 @@
       'Fruitful...': () => showFruitfulMenu(settings.fruitful),
       'Divergent...': () => showDivergentMenu(settings.decentering),
       'Hour Color': {
-        value: 0 | color_options.indexOf(settings.color),
+        value: 0 | color_options.indexOf(settings.hour_color),
         min: 0, max: color_options.length - 1,
         format: v => color_options[v],
         onchange: v => {
           settings.hour_color = color_options[v];
           settings.hour_fg = fg_code[v];
+          saveSettings(settings);
+        },
+      },
+      'ClockInfo Color': {
+        value: 0 | color_options.indexOf(settings.clock_info_color),
+        min: 0, max: color_options.length - 1,
+        format: v => color_options[v],
+        onchange: v => {
+          settings.clock_info_color = color_options[v];
+          settings.clock_info_fg = fg_code[v];
+          settings.clock_info_gy = gy_code[v];
           saveSettings(settings);
         },
       },

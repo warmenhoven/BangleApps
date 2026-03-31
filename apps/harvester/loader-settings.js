@@ -28,6 +28,9 @@ function getDefaultSettings() {
     ],
     hour_color: 'Green',
     hour_fg: '#0f0',
+    clock_info_color: 'Green',
+    clock_info_fg: '#0f0',
+    clock_info_gy: '#020',
     cur_mode: 0,
     last_reset: null,
     decentering: [
@@ -91,6 +94,9 @@ function normalizeSettings(s) {
 
   s.hour_color = s.hour_color || def.hour_color;
   s.hour_fg = s.hour_fg || def.hour_fg;
+  s.clock_info_color = s.clock_info_color || def.clock_info_color;
+  s.clock_info_fg = s.clock_info_fg || def.clock_info_fg;
+  s.clock_info_gy = s.clock_info_gy || def.clock_info_gy;
   s.fallow_denominator = s.fallow_denominator || def.fallow_denominator;
   s.cur_mode = s.cur_mode || def.cur_mode;
   s.fallow_buffer = s.fallow_buffer || def.fallow_buffer;

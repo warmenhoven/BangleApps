@@ -67,6 +67,9 @@ function getDefaultSettings() {
     ],
     hour_color: 'Green',
     hour_fg: '#0f0',
+    clock_info_color: 'Green',
+    clock_info_fg: '#0f0',
+    clock_info_gy: '#020',
     cur_mode: 0,
     last_reset: null,
     decentering: [
@@ -130,6 +133,9 @@ function normalizeSettings(s) {
 
   s.hour_color = s.hour_color || def.hour_color;
   s.hour_fg = s.hour_fg || def.hour_fg;
+  s.clock_info_color = s.clock_info_color || def.clock_info_color;
+  s.clock_info_fg = s.clock_info_fg || def.clock_info_fg;
+  s.clock_info_gy = s.clock_info_gy || def.clock_info_gy;
   s.fallow_denominator = s.fallow_denominator || def.fallow_denominator;
   s.cur_mode = s.cur_mode || def.cur_mode;
   s.fallow_buffer = s.fallow_buffer || def.fallow_buffer;
@@ -200,6 +206,7 @@ const FIRST_DECENTER_IDX = -1, FALLOW_IDX = 0, FIRST_FRUITFUL_IDX = 1;
 
 var totalMin;
 var palCat, modeCat, pendingTimeCat;
+var palCI;
 // FCat arrays are shorter than others but have synchronized indexing as far as possible
 var targetMinFCat, startFCat, endFCat;
 
@@ -211,7 +218,8 @@ const CM_W = 53;
 const CM_H = 34;
 const CM_SUB_W = 30, CM_SUB_H = 20;
 
-const CI_Y = 34, CI_W = 44, CI_X = W / 2 - CI_W / 2, CI_H = 14;
+const CI_GAUGE_Y = 40, CI_GAUGE_W = 100, CI_GAUGE_X = W / 2 - CI_GAUGE_W / 2, CI_GAUGE_H = 6;
+const CI_TEXT_Y = 24, CI_TEXT_W = 40, CI_TEXT_X = W / 2 - CI_TEXT_W / 2, CI_TEXT_H = 14;
 
 const ringEdge = 2;
 const ringIterOffset = 10;
@@ -430,6 +438,7 @@ function updateDerivedRingVars() {
 
   setTargets();
 
+  palCI = palette(autoGray(settings.clock_info_gy), settings.clock_info_fg);
   palCat[FALLOW_IDX] = palette(autoGray('#220'), '#860');
   // TODO: Draw out a nice circle and arrows properly
   modeCat[FALLOW_IDX] = '» × «';
@@ -685,7 +694,8 @@ function clearDrawingCache() {
   prevDrawnMode = null;
   prevDrawnTime = null;
   prevDrawnSegment.fill(null);
-  lastCIMid = null;
+  lastCIValue = null;
+  lastCIName = '';
 }
 
 function redrawWholeFace() {
@@ -988,32 +998,35 @@ function eligibleClockInfoItems() {
   return ret;
 }
 
-var lastCIMid/* , lastCIName */;
+var lastCIValue, lastCIFocus = false, lastCIName = '';
 function drawGaugeClockInfo (itm, info, options) {
-  //var newItem = itm.name != lastCIName;
-  //lastCIName = itm.name;
   g.reset();
-  // TODO: Improve L&F
-  if (options.focus) { g.setColor(autoGray('#222')); } else { g.setColor(g.theme.bg); }
-  g.fillRect(options.x, options.y, options.x+options.w-2, options.y+options.h-1);
-  var midx = options.x+options.w/2;
-  var disp = g.findFont(itm.name, {w: options.w, h: options.h, wrap: true, trim: true});
-  g.setColor(g.theme.fg).setFontAlign(0,-1).drawString(disp.text, midx, CI_Y + 1);
-  // TODO: Optimize redraws
+  if (options.focus != lastCIFocus || itm.name != lastCIName) {
+    // TODO: Improve L&F
+    if (options.focus) { g.setColor(autoGray('#222')); } else { g.setColor(g.theme.bg); }
+    lastCIFocus = options.focus;
+    lastCIName = itm.name;
+    g.fillRect(options.x, options.y, options.x+options.w-2, options.y+options.h-1);
+    const midx = options.x+options.w/2;
+    const disp = g.findFont(itm.name, {w: options.w, h: options.h, wrap: true, trim: true});
+    g.setColor(g.theme.fg).setFontAlign(0,-1).drawString(disp.text, midx, CI_TEXT_Y + 1);
+  }
   const maxSpan = info.max - info.min;
-  var maxNormalizer = maxSpan / (totalMin / 4);
-  var normalValue = Math.round((info.v - info.min) / maxNormalizer);
-  // Make the gauge span 1/4 circle centered across the top
-  var spans = getGaugeSpans(Math.round(-0.125 * totalMin), normalValue, Math.round(totalMin / 4));
-  if (lastCIMid == spans.mid) return;
-  lastCIMid = spans.mid;
-  log_debug(spans);
-  // TODO: Set up palette options properly
-  drawSegment(spans.start, spans.mid, spans.end, palette('#020', '#0f0'), 2);
+  const maxNormalizer = maxSpan / CI_GAUGE_W;
+  const normalValue = E.clip(Math.round((info.v - info.min) / maxNormalizer), 0, CI_GAUGE_W);
+  if (lastCIValue === normalValue) return;
+  const xValue = CI_GAUGE_X + normalValue;
+  g.setColor(palCI[2]);
+  g.fillRect(CI_GAUGE_X, CI_GAUGE_Y, xValue, CI_GAUGE_Y + CI_GAUGE_H);
+  if (!lastCIValue) {
+    g.setColor(palCI[1]);
+    g.fillRect(xValue, CI_GAUGE_Y, CI_GAUGE_X + CI_GAUGE_W, CI_GAUGE_Y + CI_GAUGE_H);
+  }
+  lastCIValue = normalValue;
 }
 
 var clockInfoItems = eligibleClockInfoItems();
 curClockInfo = clockInfo.addInteractive(clockInfoItems, {
-  x: CI_X, y: CI_Y, w: CI_W, h: CI_H, // For automatic tap detection
+  x: CI_TEXT_X, y: CI_TEXT_Y, w: CI_TEXT_W, h: CI_TEXT_H, // For automatic tap detection
   draw: drawGaugeClockInfo
 });
