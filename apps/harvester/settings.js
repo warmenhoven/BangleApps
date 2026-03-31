@@ -61,6 +61,7 @@
           color: 'Green', fg: '#0f0', gy: '#020',
           title: 'Work',
           target_min: 480, sec_today: 0, id: id1,
+          target_min_override: new Array(7).fill(-1),
         },
       ],
       hour_color: 'Green',
@@ -85,7 +86,10 @@
     cat.gy = cat.gy || '#222';
     cat.title = cat.title || '??';
     cat.sec_today = 0 | cat.sec_today;
-    if (cat.target_min) cat.target_min = 0 | cat.target_min;
+    if (cat.target_min) {
+      cat.target_min = 0 | cat.target_min;
+      cat.target_min_override = cat.target_min_override || new Array(7).fill(-1);
+    }
     if (!cat.id) {
       // TODO: Use proper UUID, probably via TS library
       if (!normalizeCat._seq) {

@@ -62,6 +62,7 @@ function getDefaultSettings() {
         color: 'Green', fg: '#0f0', gy: '#020',
         title: 'Work',
         target_min: 480, sec_today: 0, id: id1,
+        target_min_override: new Array(7).fill(-1),
       },
     ],
     hour_color: 'Green',
@@ -86,7 +87,10 @@ function normalizeCat(cat, i, _arr) {
   cat.gy = cat.gy || '#222';
   cat.title = cat.title || '??';
   cat.sec_today = 0 | cat.sec_today;
-  if (cat.target_min) cat.target_min = 0 | cat.target_min;
+  if (cat.target_min) {
+    cat.target_min = 0 | cat.target_min;
+    cat.target_min_override = cat.target_min_override || new Array(7).fill(-1);
+  }
   if (!cat.id) {
     // TODO: Use proper UUID, probably via TS library
     if (!normalizeCat._seq) {
@@ -148,6 +152,18 @@ function denormalizeSettings(s, pendingTimeCat) {
   return s;
 }
 // #endregion
+
+// #region XXX: Ensure these are kept in sync between loader-settings.js and app.js
+function totalTargetMin(fruitful) {
+  return fruitful.target_min_override.reduce((acc, c, _i, _arr) =>
+                                   acc + (c >= 0 ? c : fruitful.target_min), 0);
+}
+// #endregion
+
+function totalTargetMinFrom(fruitful, today) {
+  return fruitful.target_min_override.slice(today).reduce((acc, c, _i, _arr) =>
+                                   acc + (c >= 0 ? c : fruitful.target_min), 0);
+}
 
 /* exported reloadFromWeb */
 function reloadFromWeb() {
@@ -378,21 +394,31 @@ function autoGray(category) {
 }
 
 function setTargets() {
+  totalMin = 0;
   settings.fruitful.forEach((fruitful, i, _arr) => {
+    if (!fruitful.title) return;
+      const today = new Date().getDay();
+    const tgtOverride = fruitful.target_min_override[today];
+    const tgtBase = tgtOverride !== -1 ? tgtOverride : fruitful.target_min;
     if (fruitful.adapt_to_week) {
-      let secLeft = fruitful.target_min * MIN * 7 - fruitful.sec_this_week;
-      let daysLeft = 7 - new Date().getDay();
-      let tgt = E.clip(Math.ceil(secLeft / daysLeft / MIN), 0, 2 * fruitful.target_min);
-      log_debug(`${fruitful.sec_this_week}s already, ${secLeft} left in ${daysLeft}d: ${tgt}`);
+      const secLeft = totalTargetMin(fruitful) * MIN - fruitful.sec_this_week;
+      const minFutureTarget = totalTargetMinFrom(fruitful, today);
+      const daysLeft = 7 - today, minNeeded = secLeft / MIN;
+      const factor = E.clip(minNeeded / minFutureTarget, 0, 2);
+      const tgt = Math.ceil(tgtBase * factor);
+      log_debug(`${fruitful.sec_this_week}s already, ${secLeft}s left in` +
+                ` ${daysLeft}d with up to ${minFutureTarget} min available: x${factor}=${tgt}`);
       targetMinFCat[i] = tgt;
-    } else if (fruitful.target_min) {
-      targetMinFCat[i] = fruitful.target_min;
+    } else {
+      targetMinFCat[i] = tgtBase;
     }
+    startFCat[i] = totalMin;
+    totalMin += targetMinFCat[i];
+    endFCat[i] = totalMin;
   });
 }
 
 function updateDerivedRingVars() {
-  totalMin = 0;
   var fixedPosLen = settings.fruitful.length;
   var displayedLen = 1 + settings.fruitful.length + settings.decentering.length - 2;
   startFCat = new Uint16Array(fixedPosLen);
@@ -410,9 +436,6 @@ function updateDerivedRingVars() {
   pendingTimeCat[FALLOW_IDX] = settings.fallow_buffer;
   settings.fruitful.forEach((fruitful, i, _arr) => {
     if (!fruitful.title) return;
-    startFCat[i] = totalMin;
-    totalMin += targetMinFCat[i];
-    endFCat[i] = totalMin;
     palCat[i] = palette(autoGray(fruitful), g.toColor(fruitful.fg));
     modeCat[i] = fruitful.title;
     setAt(pendingTimeCat, i, fruitful.sec_today);
