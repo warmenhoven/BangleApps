@@ -23,6 +23,7 @@ function getDefaultSettings() {
         color: 'Green', fg: '#0f0', gy: '#020',
         title: 'Work',
         target_min: 480, sec_today: 0, id: id1,
+        target_min_override: new Array(7).fill(-1),
       },
     ],
     hour_color: 'Green',
@@ -47,7 +48,10 @@ function normalizeCat(cat, i, _arr) {
   cat.gy = cat.gy || '#222';
   cat.title = cat.title || '??';
   cat.sec_today = 0 | cat.sec_today;
-  if (cat.target_min) cat.target_min = 0 | cat.target_min;
+  if (cat.target_min) {
+    cat.target_min = 0 | cat.target_min;
+    cat.target_min_override = cat.target_min_override || new Array(7).fill(-1);
+  }
   if (!cat.id) {
     // TODO: Use proper UUID, probably via TS library
     if (!normalizeCat._seq) {
@@ -122,6 +126,13 @@ const gy_code = [
   '#220', '#220', '#200', '#200', '#222', null];
 // #endregion
 
+// #region XXX: Ensure these are kept in sync between loader-settings.js and app.js
+function totalTargetMin(fruitful) {
+  return fruitful.target_min_override.reduce((acc, c, _i, _arr) =>
+                                   acc + (c >= 0 ? c : fruitful.target_min), 0);
+}
+// #endregion
+
 var needsNewLogFile = false;
 function registerChange(affectsLog) {
   btnSave.disabled = false;
@@ -139,6 +150,11 @@ function parseCategory(elem, arrRef) {
   cat.gy = gy_code[iColor];
   let targetMin = elem.querySelector('input[name=target_min]')?.value;
   if (targetMin) cat.target_min = 0 | targetMin;
+  const elemOverrides = Array.from(elem.querySelectorAll('menu input[type=number]'));
+  const targetMinOverride = elemOverrides.map(e => '' == e.value ? -1 : 0 | e.value);
+  if (targetMinOverride.some(v => v >= 0)) {
+    cat.target_min_override = targetMinOverride;
+  }
   return cat;
 }
 
@@ -222,6 +238,11 @@ function deleteCategory(evt) {
   registerChange(true);
 }
 
+function toggleCustomizations(evt) {
+  const chk = evt.target, elemCat = chk.closest('*[data-id]');
+  elemCat.children[2].style.display = chk.checked ? 'table-row' : 'none';
+}
+
 function hrs(min) {
   const rounded = Math.round(min * 4 / 60) / 4, ret = Math.floor(rounded).toString();
   switch (rounded % 1) {
@@ -232,14 +253,21 @@ function hrs(min) {
   }
 }
 
-function calcMeter({ sec_this_week, sec_today, target_min }, totalMin) {
+// TODO: Reunify with other two?
+function totalTargetMinBefore(fruitful, today) {
+  return fruitful.target_min_override.slice(0, today).reduce((acc, c, _i, _arr) =>
+                                      acc + (c >= 0 ? c : fruitful.target_min), 0);
+}
+
+function calcMeter(cat, totalMin) {
+  const { sec_this_week, sec_today, target_min } = cat;
   const minThisWeek = Math.round(((sec_this_week ?? 0) + (sec_today ?? 0)) / 60);
-  const days = 1 + new Date().getDay();
+  const today = new Date().getDay();
   if (target_min) {
-    const minWeekTarget = Math.ceil(target_min * 7);
+    const minWeekTarget = totalTargetMin(cat);
     const done = minThisWeek >= minWeekTarget;
-    const minTargetSoFar = Math.ceil(target_min * days);
-    const low = Math.floor(target_min * (days - 1));
+    const minTargetSoFar = totalTargetMinBefore(cat, today + 1);
+    const low = totalTargetMinBefore(cat, today);
     const high = done ? minTargetSoFar * 1.2 : minTargetSoFar;
     return {
       minThisWeek, low, high,
@@ -253,8 +281,8 @@ function calcMeter({ sec_this_week, sec_today, target_min }, totalMin) {
   else {
     // TODO: Make the baseline & high more principled for overages
     const minBaseline = totalMin / settings.fallow_denominator / 20;
-    const high = Math.ceil(minBaseline * 5 * days);
-    const low = Math.ceil(minBaseline * days);
+    const high = Math.ceil(minBaseline * 5 * (today + 1));
+    const low = Math.ceil(minBaseline * (today + 1));
     return {
       minThisWeek, low, high,
       max: high * 2,
@@ -265,7 +293,7 @@ function calcMeter({ sec_this_week, sec_today, target_min }, totalMin) {
 }
 
 function createCategoryEdit(cat, totalMin) {
-  const { id, title, color, target_min, adapt_to_week } = cat;
+  const { id, title, color, target_min, adapt_to_week, target_min_override } = cat;
   const idTemplate = target_min ? 'fruitfulRow' : 'decenteringRow';
   const elemCat = document.importNode(document.getElementById(idTemplate).content, true);
   elemCat.querySelector('tbody').dataset.id = id;
@@ -280,6 +308,17 @@ function createCategoryEdit(cat, totalMin) {
   if (target_min) {
     elemCat.querySelector('input[name=adapt_to_week]').checked = !!adapt_to_week;
     elemCat.querySelector('input[name=target_min]').value = target_min;
+    const elemCustomizations = elemCat.querySelector('input[name=customizations]');
+    elemCustomizations.checked = target_min_override?.some(v => v >= 0);
+    elemCustomizations.addEventListener('change', toggleCustomizations);
+    if (elemCustomizations.checked) {
+      const trCustomizations = elemCat.querySelector('tr:last-of-type');
+      trCustomizations.style.display = 'table-row';
+      trCustomizations.querySelectorAll('input').forEach((elem, i, _arr) => {
+        const v = target_min_override[i];
+        if (v > -1) elem.value = v;
+      });
+    }
   }
   const { minThisWeek, max, high, low, optimum, meterTitle } = calcMeter(cat, totalMin);
   const meter = elemCat.querySelector('meter');
@@ -309,9 +348,22 @@ function addNewCategory(isFruitful) {
   };
   if (isFruitful) skeleton.target_min = 15;
   let totalMin = fruitfulElems.reduce((sum, elem, _i, _a) =>
-    sum + (parseCategory(elem).target_min || 0), 0);
+    sum + totalTargetMin(parseCategory(elem)), 0);
   elemContainer.appendChild(createCategoryEdit(skeleton, totalMin));
   registerChange(true);
+}
+
+function populateWeekdayHeader() {
+  // Adapted from https://stackoverflow.com/a/76465052
+  const WeekdayNames = new Array(7).fill(0).map((_, i) =>
+    new Date(0, 0, i).toLocaleString(navigator.language, { weekday: 'long' }));
+  
+  const elemHeader = document.getElementById('weekdayHeader');
+  for (let i = 0; i < 7; i++) {
+    const elem = document.createElement('li');
+    elem.textContent = WeekdayNames[i];
+    elemHeader.appendChild(elem);
+  }
 }
 
 btnSave.addEventListener("click", saveToBangle);
@@ -323,5 +375,6 @@ document.getElementById('addDecentering').addEventListener("click",
 // Called by app loader on start
 /* exported onInit */
 function onInit() {
+  populateWeekdayHeader();
   loadFromBangle();
 }
