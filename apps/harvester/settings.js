@@ -130,14 +130,11 @@
       s.fallow_buffer = s.total_sec_by_cat[0];
     }
 
-    s.hour_color = s.hour_color || def.hour_color;
-    s.hour_fg = s.hour_fg || def.hour_fg;
-    s.clock_info_color = s.clock_info_color || def.clock_info_color;
-    s.clock_info_fg = s.clock_info_fg || def.clock_info_fg;
-    s.clock_info_gy = s.clock_info_gy || def.clock_info_gy;
-    s.fallow_denominator = s.fallow_denominator || def.fallow_denominator;
-    s.cur_mode = s.cur_mode || def.cur_mode;
-    s.fallow_buffer = s.fallow_buffer || def.fallow_buffer;
+    for (let k in def) {
+      if (k == 'fruitful' || k == 'decentering' || k == 'total_sec_by_cat') continue;
+      s[k] = s[k] || def[k];
+    }
+
     return s;
   }
   function denormalizeSettings(s, pendingTimeCat) {
