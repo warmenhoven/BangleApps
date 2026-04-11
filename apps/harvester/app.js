@@ -199,12 +199,15 @@ function reloadFromWeb() {
   return true;
 }
 
-const H = g.getHeight();
-const W = g.getWidth();
+const H = g.getHeight(), W = g.getWidth(), X_C = W/2, Y_C = H/2;
 
 const FIRST_DECENTER_IDX = -1, FALLOW_IDX = 0, FIRST_FRUITFUL_IDX = 1;
 
+const PAL_BG_ALIAS = 15, PAL_FALLOW_ALIAS = 14;
+
 var totalMin;
+var fallowScale, palRing;
+// palCat has the size of a normal palette (16) but is indexable from either end
 var palCat, modeCat, pendingTimeCat;
 var palCI;
 // FCat arrays are shorter than others but have synchronized indexing as far as possible
@@ -213,19 +216,29 @@ var targetMinFCat, startFCat, endFCat;
 const CLK_Y = H / 2 - 12;
 const CLK_HALF_W = 112 / 2, CLK_HALF_H = 46 / 2, CLK_BG_Y = H / 2 - 17;
 
-const CM_Y = (3 * H / 4) - 19;
-const CM_W = 53;
-const CM_H = 34;
-const CM_SUB_W = 30, CM_SUB_H = 20;
+const CM_SUB_W = 32, CM_SUB_H = 20;
+const CM_SUB_Y = CLK_Y + 20;
 
-const CI_GAUGE_Y = 40, CI_GAUGE_W = 100, CI_GAUGE_X = W / 2 - CI_GAUGE_W / 2, CI_GAUGE_H = 6;
-const CI_TEXT_Y = 24, CI_TEXT_W = 40, CI_TEXT_X = W / 2 - CI_TEXT_W / 2, CI_TEXT_H = 14;
+const CI_GAUGE_Y = 53, CI_GAUGE_W = 100, CI_GAUGE_X = X_C - CI_GAUGE_W / 2, CI_GAUGE_H = 6;
+const CI_TEXT_Y = CI_GAUGE_Y - 16, CI_TEXT_W = 42, CI_TEXT_X = X_C - CI_TEXT_W / 2, CI_TEXT_H = 14;
 
-const ringEdge = 2;
-const ringIterOffset = 10;
-const ringThick = 6;
+const RI_GAUGE = 0, RI_SEGMENT = 1, RI_OVERFLOW_GAUGE = 2;
+/* const RI_FALLOW_SEGMENT = 3, RI_FALLOW_INNER = 4, RI_FALLOW_GAUGE = 5; */
+
+const RING_THICK_GAUGE = 8, RING_THICK_SEGMENT = 4;
+function calcRadii() {
+  const RING_EDGE = 1;
+
+  const base = Math.min(W / 2, H / 2) - RING_EDGE;
+  const seg = base - RING_THICK_GAUGE;
+  const overflow = seg - RING_THICK_SEGMENT;
+  const fallowSeg = overflow - RING_THICK_GAUGE;
+  const fallowInner = fallowSeg - RING_THICK_SEGMENT;
+  return new Uint8Array([base, seg, overflow, fallowSeg, fallowInner]);
+}
+const RAD = calcRadii();
+
 const nextUpdateMs = 60000;
-const radiusOuterRing = Math.min((W / 2 - ringEdge), (H / 2 - ringEdge));
 
 var prevDrawnMode, prevDrawnTime, prevDrawnSegment = [];
 
@@ -247,10 +260,12 @@ function measureEffectDuration(f) {
 const MIN = 60;
 
 function at(arr, i) {
+  "jit";
   if (i < 0) i += arr.length;
   return arr[i];
 }
 function setAt(arr, i, v) {
+  "jit";
   if (i < 0) i += arr.length;
   return arr[i] = v;
 }
@@ -258,7 +273,8 @@ function setAt(arr, i, v) {
 const MAX_SEC = 24 * 60 * MIN;
 
 function getMin(i) {
-  return Math.floor(at(pendingTimeCat, i) / MIN);
+  "jit";
+  return floor(at(pendingTimeCat, i) / MIN);
 }
 var lastBuzzCheck = 0;
 function addFruitful(i, sec) {
@@ -386,9 +402,12 @@ function ymd(date) {
   return date.toLocalISOString().substring(0, 10);
 }
 
+/** @returns A 4-color palette with background, dim, bright, background again
+ *           for transparent/opaque background tricks
+ */
 function palette(dim, bright) {
   //log_debug('Pal: ' + dim + ', ' + bright);
-  return new Uint16Array([g.theme.bg, g.toColor(dim), g.toColor(bright), g.theme.fg]);
+  return new Uint16Array([g.theme.bg, g.toColor(dim), g.toColor(bright), g.theme.bg]);
 }
 function autoGray(category) {
   if (g.theme.dark || category.color == 'Blk/Wht') {
@@ -405,7 +424,7 @@ function setTargets() {
   totalMin = 0;
   settings.fruitful.forEach((fruitful, i, _arr) => {
     if (!fruitful.title) return;
-      const today = new Date().getDay();
+    const today = new Date().getDay();
     const tgtOverride = fruitful.target_min_override[today];
     const tgtBase = tgtOverride !== -1 ? tgtOverride : fruitful.target_min;
     if (fruitful.adapt_to_week) {
@@ -424,6 +443,7 @@ function setTargets() {
     totalMin += targetMinFCat[i];
     endFCat[i] = totalMin;
   });
+  fallowScale = Math.round(totalMin / 4);
 }
 
 function updateDerivedRingVars() {
@@ -432,26 +452,28 @@ function updateDerivedRingVars() {
   startFCat = new Uint16Array(fixedPosLen);
   endFCat = new Uint16Array(fixedPosLen);
   targetMinFCat = new Uint16Array(fixedPosLen);
-  palCat = new Array(displayedLen);
+  palCat = new Uint16Array(16);
   modeCat = new Array(displayedLen);
   pendingTimeCat = new Uint16Array(displayedLen);
+  palRing = new Uint16Array(16);
 
   setTargets();
 
   palCI = palette(autoGray(settings.clock_info_gy), settings.clock_info_fg);
-  palCat[FALLOW_IDX] = palette(autoGray('#220'), '#860');
+  palCat[FALLOW_IDX] = palRing[PAL_FALLOW_ALIAS] = g.toColor('#860');
+  palRing[PAL_BG_ALIAS] = g.theme.bg;
   // TODO: Draw out a nice circle and arrows properly
-  modeCat[FALLOW_IDX] = '» × «';
+  modeCat[FALLOW_IDX] = '';//'» × «';
   pendingTimeCat[FALLOW_IDX] = settings.fallow_buffer;
   settings.fruitful.forEach((fruitful, i, _arr) => {
     if (!fruitful.title) return;
-    palCat[i] = palette(autoGray(fruitful), g.toColor(fruitful.fg));
+    palCat[i] = palRing[i] = g.toColor(fruitful.fg);
     modeCat[i] = fruitful.title;
     setAt(pendingTimeCat, i, fruitful.sec_today);
   });
   settings.decentering.forEach((decentering, i, _arr) => {
     if (!decentering.title) return;
-    setAt(palCat, -i, palette(autoGray(decentering), g.toColor(decentering.fg)));
+    setAt(palCat, -i, g.toColor(decentering.fg));
     setAt(modeCat, -i, decentering.title);
     setAt(pendingTimeCat, -i, decentering.sec_today);
   });
@@ -504,100 +526,308 @@ function draw() {
   queueDraw();
 }
 
-function getGaugeSpans(start, amtMin, targetMin, invertRing) {
+function getGauge(start, amtMin, targetMin, idxCat, idxRing) {
   "jit";
-  let result = {};
-  if (invertRing) {
-    result.end = totalMin - start;
-    result.mid = result.end - amtMin;
-    result.start = result.end - targetMin;
-  } else {
-    result.start = start;
-    result.mid = start + amtMin;
-    result.end = start + targetMin;
+  const j = idxRing > 0 ? idxCat + 16 : idxCat; // Treat original/overflow separately
+  const prevGauge = prevDrawnSegment[j], cacheKey = '' + start + '+' + targetMin;
+  const invertRing = idxCat < 0;
+  if (prevGauge && prevGauge.cacheKey == cacheKey) {
+    prevGauge.amtToDraw = amtMin - prevGauge.amtMin;
+    if (0 === prevGauge.amtToDraw) {
+      if (idxRing === RI_GAUGE) prevGauge.amtToDraw = null;
+      return prevGauge;
+    }
+    if (idxRing === RI_GAUGE) {
+      prevGauge.amtMin = amtMin;
+      prevGauge.mid = prevGauge.start + amtMin;
+      return prevGauge;
+    }
   }
-
-  //log_debug(result);
+  let result = { idxCat: idxCat, idxRing: idxRing, invertRing: invertRing,
+                 cacheKey: cacheKey, };
+  let minLimit = totalMin;
+  if (idxCat === FALLOW_IDX) {
+    minLimit = totalMin - getFallowStartMin();
+  } else if (idxRing === RI_OVERFLOW_GAUGE && invertRing) {
+    minLimit = totalMin + 1 - getFallowStartMin();
+  } else if (idxRing === RI_OVERFLOW_GAUGE) {
+    minLimit = getFallowStartMin() - 1;
+  }
+  if (invertRing) {
+    result.end = Math.max(totalMin - start, minLimit);
+    result.mid = result.end;
+    result.start = Math.max(result.end - targetMin, minLimit);
+  } else {
+    result.start = Math.min(start, minLimit);
+    result.mid = Math.min(start + amtMin, minLimit);
+    result.end = Math.min(start + targetMin, minLimit);
+  }
+  result.amtToDraw = result.mid - result.start;
+  result.amtMin = amtMin;
   return result;
 }
 
-function drawIfChanged(gaugeSpans, idxCat, idxRing) {
-  "jit";
-  var j = idxRing > 0 ? idxCat + 16 : idxCat; // Treat original/overflow separately
-  var prevSpans = prevDrawnSegment[j];
-  var endpointsMatch = prevSpans && prevSpans.start == gaugeSpans.start &&
-                       prevSpans.end == gaugeSpans.end;
-  if (endpointsMatch && prevSpans.mid == gaugeSpans.mid) return false;
-  prevDrawnSegment[j] = gaugeSpans;
-  var pal = at(palCat, idxCat);
-  if (idxCat <= FIRST_DECENTER_IDX) pal = palette(pal[2], pal[1]);
-  if (endpointsMatch && prevSpans.mid < gaugeSpans.mid) {
-    // Cheat by only drawing the progressed amount
-    log_debug("Redrew advanced subsection of part #" + idxCat + " in ring #" + idxRing +
-              ' from ' + prevSpans.mid + ' to ' + gaugeSpans.mid);
-    drawSegment(prevSpans.mid, gaugeSpans.mid, gaugeSpans.mid, pal, idxRing);
-  } else {
-    log_debug('Redrew part #' + idxCat + ' in ring #' + idxRing +
-              ' (' + gaugeSpans.start + '-' + gaugeSpans.mid + '-' + gaugeSpans.end + ')');
-    drawSegment(gaugeSpans.start, gaugeSpans.mid, gaugeSpans.end, pal, idxRing);
-  }
-  return true;
+// #region Efficient arc drawing
+var totalMinDrawn = 0;
+// #region XXX: Dumb JIT hacks
+function getXYBase(angle) { return [Math.sin(angle), Math.cos(angle + Math.PI)]; }
+function round(v) { return Math.round(v); }
+function floor(v) { return Math.floor(v); }
+function ceil(v) { return Math.ceil(v); }
+function newArray(len) { return new Array(len); }
+// #endregion
+
+function blankGauge(grph) {
+  grph.drawImage(atob('sLCBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///gAAAAAAAAAAAAAAAAAAAAAAAB/////8AAAAAAAAAAAAAAAAAAAAAAH//////8AAAAAAAAAAAAAAAAAAAAAf///////8AAAAAAAAAAAAAAAAAAAA/////////4AAAAAAAAAAAAAAAAAAB//////////wAAAAAAAAAAAAAAAAAB///////////AAAAAAAAAAAAAAAAAD///////////+AAAAAAAAAAAAAAAAD////4AAD////4AAAAAAAAAAAAAAAD///8AAAAAf///gAAAAAAAAAAAAAAD///wAAAAAAf//+AAAAAAAAAAAAAAD///AAAAAAAAf//4AAAAAAAAAAAAAB//+AAAAAAAAA///AAAAAAAAAAAAAB//+AAAAAAAAAD//8AAAAAAAAAAAAB//8AAAAAAAAAAH//wAAAAAAAAAAAA//8AAAAAAAAAAAf/+AAAAAAAAAAAAf/8AAAAAAAAAAAB//wAAAAAAAAAAAf/8AAAAAAAAAAAAH//AAAAAAAAAAAP/8AAAAAAAAAAAAAf/4AAAAAAAAAAH/8AAAAAAAAAAAAAB//AAAAAAAAAAH/+AAAAAAAAAAAAAAP/8AAAAAAAAAD/+AAAAAAAAAAAAAAA//gAAAAAAAAB//AAAAAAAAAAAAAAAH/8AAAAAAAAA//gAAAAAAAAAAAAAAA//gAAAAAAAAf/gAAAAAAAAAAAAAAAD/8AAAAAAAAP/wAAAAAAAAAAAAAAAAf/gAAAAAAAH/4AAAAAAAAAAAAAAAAD/8AAAAAAAD/8AAAAAAAAAAAAAAAAAf/gAAAAAAB/8AAAAAAAAAAAAAAAAAB/8AAAAAAA/+AAAAAAAAAAAAAAAAAAP/gAAAAAAf/AAAAAAAAAAAAAAAAAAB/8AAAAAAH/gAAAAAAAAAAAAAAAAAAP/AAAAAAD/wAAAAAAAAAAAAAAAAAAB/4AAAAAB/4AAAAAAAAAAAAAAAAAAAP/AAAAAA/+AAAAAAAAAAAAAAAAAAAD/4AAAAAP/AAAAAAAAAAAAAAAAAAAAf+AAAAAH/gAAAAAAAAAAAAAAAAAAAD/wAAAAD/wAAAAAAAAAAAAAAAAAAAAf+AAAAB/4AAAAAAAAAAAAAAAAAAAAD/wAAAAf+AAAAAAAAAAAAAAAAAAAAA/8AAAAP/AAAAAAAAAAAAAAAAAAAAAH/gAAAD/gAAAAAAAAAAAAAAAAAAAAA/4AAAB/wAAAAAAAAAAAAAAAAAAAAAH/AAAA/8AAAAAAAAAAAAAAAAAAAAAB/4AAAP+AAAAAAAAAAAAAAAAAAAAAAP+AAAH/AAAAAAAAAAAAAAAAAAAAAAB/wAAB/wAAAAAAAAAAAAAAAAAAAAAAf8AAA/4AAAAAAAAAAAAAAAAAAAAAAD/gAAP+AAAAAAAAAAAAAAAAAAAAAAA/4AAH/AAAAAAAAAAAAAAAAAAAAAAAH/AAB/wAAAAAAAAAAAAAAAAAAAAAAB/wAA/4AAAAAAAAAAAAAAAAAAAAAAAP+AAP+AAAAAAAAAAAAAAAAAAAAAAAD/gAD/AAAAAAAAAAAAAAAAAAAAAAAAf4AB/wAAAAAAAAAAAAAAAAAAAAAAAH/AAf4AAAAAAAAAAAAAAAAAAAAAAAA/wAP+AAAAAAAAAAAAAAAAAAAAAAAAP+AD/gAAAAAAAAAAAAAAAAAAAAAAAD/gA/wAAAAAAAAAAAAAAAAAAAAAAAAf4Af8AAAAAAAAAAAAAAAAAAAAAAAAH/AH+AAAAAAAAAAAAAAAAAAAAAAAAA/wB/gAAAAAAAAAAAAAAAAAAAAAAAAP8A/4AAAAAAAAAAAAAAAAAAAAAAAAD/gP8AAAAAAAAAAAAAAAAAAAAAAAAAf4D/AAAAAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAAAAB/gf8AAAAAAAAAAAAAAAAAAAAAAAAAf8H+AAAAAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAAAAA/wf4AAAAAAAAAAAAAAAAAAAAAAAAAP8P+AAAAAAAAAAAAAAAAAAAAAAAAAD/j/AAAAAAAAAAAAAAAAAAAAAAAAAAf4/wAAAAAAAAAAAAAAAAAAAAAAAAAH+P8AAAAAAAAAAAAAAAAAAAAAAAAAB/j/AAAAAAAAAAAAAAAAAAAAAAAAAAf4/wAAAAAAAAAAAAAAAAAAAAAAAAAH+P8AAAAAAAAAAAAAAAAAAAAAAAAAB/n/AAAAAAAAAAAAAAAAAAAAAAAAAAf9/gAAAAAAAAAAAAAAAAAAAAAAAAAD/f4AAAAAAAAAAAAAAAAAAAAAAAAAA/3+AAAAAAAAAAAAAAAAAAAAAAAAAAP9/gAAAAAAAAAAAAAAAAAAAAAAAAAD/f4AAAAAAAAAAAAAAAAAAAAAAAAAA/3+AAAAAAAAAAAAAAAAAAAAAAAAAAP9/gAAAAAAAAAAAAAAAAAAAAAAAAAD/f4AAAAAAAAAAAAAAAAAAAAAAAAAA/3+AAAAAAAAAAAAAAAAAAAAAAAAAAP9/gAAAAAAAAAAAAAAAAAAAAAAAAAD/f4AAAAAAAAAAAAAAAAAAAAAAAAAA/3+AAAAAAAAAAAAAAAAAAAAAAAAAAP9/gAAAAAAAAAAAAAAAAAAAAAAAAAD/f4AAAAAAAAAAAAAAAAAAAAAAAAAA/3+AAAAAAAAAAAAAAAAAAAAAAAAAAP9/gAAAAAAAAAAAAAAAAAAAAAAAAAD/f4AAAAAAAAAAAAAAAAAAAAAAAAAA/3+AAAAAAAAAAAAAAAAAAAAAAAAAAP9/gAAAAAAAAAAAAAAAAAAAAAAAAAD/f8AAAAAAAAAAAAAAAAAAAAAAAAAB/z/AAAAAAAAAAAAAAAAAAAAAAAAAAf4/wAAAAAAAAAAAAAAAAAAAAAAAAAH+P8AAAAAAAAAAAAAAAAAAAAAAAAAB/j/AAAAAAAAAAAAAAAAAAAAAAAAAAf4/wAAAAAAAAAAAAAAAAAAAAAAAAAH+P8AAAAAAAAAAAAAAAAAAAAAAAAAB/j/gAAAAAAAAAAAAAAAAAAAAAAAAA/4f4AAAAAAAAAAAAAAAAAAAAAAAAAP8H+AAAAAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAAAAA/wf8AAAAAAAAAAAAAAAAAAAAAAAAAf8D/AAAAAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAAAAB/gP8AAAAAAAAAAAAAAAAAAAAAAAAAf4D/gAAAAAAAAAAAAAAAAAAAAAAAAP+Af4AAAAAAAAAAAAAAAAAAAAAAAAD/AH+AAAAAAAAAAAAAAAAAAAAAAAAA/wB/wAAAAAAAAAAAAAAAAAAAAAAAAf8AP8AAAAAAAAAAAAAAAAAAAAAAAAH+AD/gAAAAAAAAAAAAAAAAAAAAAAAD/gA/4AAAAAAAAAAAAAAAAAAAAAAAA/4AH+AAAAAAAAAAAAAAAAAAAAAAAAP8AB/wAAAAAAAAAAAAAAAAAAAAAAAH/AAP8AAAAAAAAAAAAAAAAAAAAAAAB/gAD/gAAAAAAAAAAAAAAAAAAAAAAA/4AA/4AAAAAAAAAAAAAAAAAAAAAAAP+AAH/AAAAAAAAAAAAAAAAAAAAAAAH/AAB/wAAAAAAAAAAAAAAAAAAAAAAB/wAAP+AAAAAAAAAAAAAAAAAAAAAAA/4AAD/gAAAAAAAAAAAAAAAAAAAAAAP+AAAf8AAAAAAAAAAAAAAAAAAAAAAH/AAAH/AAAAAAAAAAAAAAAAAAAAAAB/wAAA/4AAAAAAAAAAAAAAAAAAAAAA/4AAAP/AAAAAAAAAAAAAAAAAAAAAAf+AAAB/wAAAAAAAAAAAAAAAAAAAAAH/AAAAP+AAAAAAAAAAAAAAAAAAAAAD/gAAAD/wAAAAAAAAAAAAAAAAAAAAB/4AAAAf+AAAAAAAAAAAAAAAAAAAAA/8AAAAH/gAAAAAAAAAAAAAAAAAAAAP/AAAAA/8AAAAAAAAAAAAAAAAAAAAH/gAAAAH/gAAAAAAAAAAAAAAAAAAAD/wAAAAA/8AAAAAAAAAAAAAAAAAAAB/4AAAAAP/gAAAAAAAAAAAAAAAAAAA/+AAAAAB/4AAAAAAAAAAAAAAAAAAAP/AAAAAAP/AAAAAAAAAAAAAAAAAAAH/gAAAAAB/4AAAAAAAAAAAAAAAAAAD/wAAAAAAf/AAAAAAAAAAAAAAAAAAB/8AAAAAAD/4AAAAAAAAAAAAAAAAAA/+AAAAAAAf/AAAAAAAAAAAAAAAAAAf/AAAAAAAD/8AAAAAAAAAAAAAAAAAf/gAAAAAAAf/gAAAAAAAAAAAAAAAAP/wAAAAAAAD/8AAAAAAAAAAAAAAAAH/4AAAAAAAAf/gAAAAAAAAAAAAAAAD/8AAAAAAAAD/+AAAAAAAAAAAAAAAD/+AAAAAAAAAf/wAAAAAAAAAAAAAAB//AAAAAAAAAD/+AAAAAAAAAAAAAAA//gAAAAAAAAAf/4AAAAAAAAAAAAAA//wAAAAAAAAAB//AAAAAAAAAAAAAAf/wAAAAAAAAAAP/8AAAAAAAAAAAAAf/4AAAAAAAAAAB//wAAAAAAAAAAAAf/8AAAAAAAAAAAH//AAAAAAAAAAAAf/8AAAAAAAAAAAA//8AAAAAAAAAAAf/+AAAAAAAAAAAAH//wAAAAAAAAAAf//AAAAAAAAAAAAAf//gAAAAAAAAA///AAAAAAAAAAAAAB//+AAAAAAAAA///AAAAAAAAAAAAAAP//8AAAAAAAB///gAAAAAAAAAAAAAA///8AAAAAAH///gAAAAAAAAAAAAAAD///8AAAAAf///gAAAAAAAAAAAAAAAP////gAAP////gAAAAAAAAAAAAAAAA////////////gAAAAAAAAAAAAAAAAB///////////AAAAAAAAAAAAAAAAAAH//////////AAAAAAAAAAAAAAAAAAAP////////+AAAAAAAAAAAAAAAAAAAAf///////8AAAAAAAAAAAAAAAAAAAAAf//////wAAAAAAAAAAAAAAAAAAAAAAf/////AAAAAAAAAAAAAAAAAAAAAAAAD///gAAAAAAAAAAAA'), 0, 0);
 }
 
-function drawTrimmingCircles() {
-  "jit";
-  log_debug('Trimming circle edges');
-  g.setColor(g.theme.bg);
-  for (let iRing = 0; iRing < 2; iRing++) {
-    let radiusBase = radiusOuterRing - ringIterOffset * iRing;
-    g.drawCircle(W / 2, H / 2, radiusBase + 1);
-    //g.drawCircle(W / 2, H / 2, radiusBase);
-    g.drawCircle(W / 2, H / 2, radiusBase - ringThick);
-    g.drawCircle(W / 2, H / 2, radiusBase - ringThick - 1);
-  }
+function blankSegments(grph) {
+  grph.drawImage(atob('sLCBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//8AAAAAAAAAAAAAAAAAAAAAAAAD/////gAAAAAAAAAAAAAAAAAAAAAAP//////gAAAAAAAAAAAAAAAAAAAAA////////gAAAAAAAAAAAAAAAAAAAB//+AAA///AAAAAAAAAAAAAAAAAAAB//gAAAAP/8AAAAAAAAAAAAAAAAAAD/8AAAAAAH/4AAAAAAAAAAAAAAAAAD/4AAAAAAAP/gAAAAAAAAAAAAAAAAD/wAAAAAAAAf+AAAAAAAAAAAAAAAAD/gAAAAAAAAA/4AAAAAAAAAAAAAAAD/gAAAAAAAAAD/gAAAAAAAAAAAAAAD/gAAAAAAAAAAP+AAAAAAAAAAAAAAB/gAAAAAAAAAAA/wAAAAAAAAAAAAAB/gAAAAAAAAAAAD/AAAAAAAAAAAAAA/gAAAAAAAAAAAAP4AAAAAAAAAAAAAfwAAAAAAAAAAAAB/AAAAAAAAAAAAAfwAAAAAAAAAAAAAH8AAAAAAAAAAAAP4AAAAAAAAAAAAAA/gAAAAAAAAAAAH4AAAAAAAAAAAAAAD8AAAAAAAAAAAD8AAAAAAAAAAAAAAAfgAAAAAAAAAAD+AAAAAAAAAAAAAAAD+AAAAAAAAAAB+AAAAAAAAAAAAAAAAPwAAAAAAAAAA/AAAAAAAAAAAAAAAAB+AAAAAAAAAAfgAAAAAAAAAAAAAAAAPwAAAAAAAAAPwAAAAAAAAAAAAAAAAB+AAAAAAAAAH4AAAAAAAAAAAAAAAAAPwAAAAAAAAB8AAAAAAAAAAAAAAAAAB8AAAAAAAAA+AAAAAAAAAAAAAAAAAAPgAAAAAAAAfAAAAAAAAAAAAAAAAAAB8AAAAAAAAPgAAAAAAAAAAAAAAAAAAPgAAAAAAAHwAAAAAAAAAAAAAAAAAAB8AAAAAAAB8AAAAAAAAAAAAAAAAAAAfAAAAAAAA+AAAAAAAAAAAAAAAAAAAD4AAAAAAAfAAAAAAAAAAAAAAAAAAAAfAAAAAAAPgAAAAAAAAAAAAAAAAAAAD4AAAAAAD4AAAAAAAAAAAAAAAAAAAA+AAAAAAB8AAAAAAAAAAAAAAAAAAAAHwAAAAAA+AAAAAAAAAAAAAAAAAAAAA+AAAAAAPgAAAAAAAAAAAAAAAAAAAAPgAAAAAHwAAAAAAAAAAAAAAAAAAAAB8AAAAAB4AAAAAAAAAAAAAAAAAAAAAPAAAAAA+AAAAAAAAAAAAAAAAAAAAAD4AAAAAPAAAAAAAAAAAAAAAAAAAAAAeAAAAAHwAAAAAAAAAAAAAAAAAAAAAHwAAAAB4AAAAAAAAAAAAAAAAAAAAAA8AAAAA+AAAAAAAAAAAAAAAAAAAAAAPgAAAAPAAAAAAAAAAAAAAAAAAAAAAB4AAAAHwAAAAAAAAAAAAAAAAAAAAAAfAAAAB4AAAAAAAAAAAAAAAAAAAAAADwAAAAeAAAAAAAAAAAAAAAAAAAAAAA8AAAAPAAAAAAAAAAAAAAAAAAAAAAAHgAAADwAAAAAAAAAAAAAAAAAAAAAAB4AAAB8AAAAAAAAAAAAAAAAAAAAAAAfAAAAeAAAAAAAAAAAAAAAAAAAAAAADwAAAHgAAAAAAAAAAAAAAAAAAAAAAA8AAAD4AAAAAAAAAAAAAAAAAAAAAAAPgAAA8AAAAAAAAAAAAAAAAAAAAAAAB4AAAPAAAAAAAAAAAAAAAAAAAAAAAAeAAADwAAAAAAAAAAAAAAAAAAAAAAAHgAAB4AAAAAAAAAAAAAAAAAAAAAAAA8AAAeAAAAAAAAAAAAAAAAAAAAAAAAPAAAHgAAAAAAAAAAAAAAAAAAAAAAADwAAB4AAAAAAAAAAAAAAAAAAAAAAAA8AAA+AAAAAAAAAAAAAAAAAAAAAAAAPgAAPAAAAAAAAAAAAAAAAAAAAAAAAB4AADwAAAAAAAAAAAAAAAAAAAAAAAAeAAA8AAAAAAAAAAAAAAAAAAAAAAAAHgAAPAAAAAAAAAAAAAAAAAAAAAAAAB4AADwAAAAAAAAAAAAAAAAAAAAAAAAeAAA8AAAAAAAAAAAAAAAAAAAAAAAAHgAAeAAAAAAAAAAAAAAAAAAAAAAAAA8AAHgAAAAAAAAAAAAAAAAAAAAAAAAPAAB4AAAAAAAAAAAAAAAAAAAAAAAADwAAeAAAAAAAAAAAAAAAAAAAAAAAAA8AAHgAAAAAAAAAAAAAAAAAAAAAAAAPAAB4AAAAAAAAAAAAAAAAAAAAAAAADwAAeAAAAAAAAAAAAAAAAAAAAAAAAA8AAHgAAAAAAAAAAAAAAAAAAAAAAAAPAAB4AAAAAAAAAAAAAAAAAAAAAAAADwAAeAAAAAAAAAAAAAAAAAAAAAAAAA8AAHgAAAAAAAAAAAAAAAAAAAAAAAAPAAB4AAAAAAAAAAAAAAAAAAAAAAAADwAAeAAAAAAAAAAAAAAAAAAAAAAAAA8AAHgAAAAAAAAAAAAAAAAAAAAAAAAPAAB4AAAAAAAAAAAAAAAAAAAAAAAADwAAeAAAAAAAAAAAAAAAAAAAAAAAAA8AAHgAAAAAAAAAAAAAAAAAAAAAAAAPAAB4AAAAAAAAAAAAAAAAAAAAAAAADwAAeAAAAAAAAAAAAAAAAAAAAAAAAA8AADwAAAAAAAAAAAAAAAAAAAAAAAAeAAA8AAAAAAAAAAAAAAAAAAAAAAAAHgAAPAAAAAAAAAAAAAAAAAAAAAAAAB4AADwAAAAAAAAAAAAAAAAAAAAAAAAeAAA8AAAAAAAAAAAAAAAAAAAAAAAAHgAAPAAAAAAAAAAAAAAAAAAAAAAAAB4AAD4AAAAAAAAAAAAAAAAAAAAAAAA+AAAeAAAAAAAAAAAAAAAAAAAAAAAAPAAAHgAAAAAAAAAAAAAAAAAAAAAAADwAAB4AAAAAAAAAAAAAAAAAAAAAAAA8AAAeAAAAAAAAAAAAAAAAAAAAAAAAPAAADwAAAAAAAAAAAAAAAAAAAAAAAHgAAA8AAAAAAAAAAAAAAAAAAAAAAAB4AAAPAAAAAAAAAAAAAAAAAAAAAAAAeAAAD4AAAAAAAAAAAAAAAAAAAAAAAPgAAAeAAAAAAAAAAAAAAAAAAAAAAADwAAAHgAAAAAAAAAAAAAAAAAAAAAAA8AAAB8AAAAAAAAAAAAAAAAAAAAAAAfAAAAPAAAAAAAAAAAAAAAAAAAAAAAHgAAADwAAAAAAAAAAAAAAAAAAAAAAB4AAAAeAAAAAAAAAAAAAAAAAAAAAAA8AAAAHgAAAAAAAAAAAAAAAAAAAAAAPAAAAB8AAAAAAAAAAAAAAAAAAAAAAHwAAAAPAAAAAAAAAAAAAAAAAAAAAAB4AAAAD4AAAAAAAAAAAAAAAAAAAAAA+AAAAAeAAAAAAAAAAAAAAAAAAAAAAPAAAAAHwAAAAAAAAAAAAAAAAAAAAAHwAAAAA8AAAAAAAAAAAAAAAAAAAAAB4AAAAAPgAAAAAAAAAAAAAAAAAAAAA+AAAAAB4AAAAAAAAAAAAAAAAAAAAAPAAAAAAfAAAAAAAAAAAAAAAAAAAAAHwAAAAAD4AAAAAAAAAAAAAAAAAAAAD4AAAAAA+AAAAAAAAAAAAAAAAAAAAA+AAAAAAHwAAAAAAAAAAAAAAAAAAAAfAAAAAAA+AAAAAAAAAAAAAAAAAAAAPgAAAAAAPgAAAAAAAAAAAAAAAAAAAD4AAAAAAB8AAAAAAAAAAAAAAAAAAAB8AAAAAAAPgAAAAAAAAAAAAAAAAAAA+AAAAAAAB8AAAAAAAAAAAAAAAAAAAfAAAAAAAAfAAAAAAAAAAAAAAAAAAAHwAAAAAAAD4AAAAAAAAAAAAAAAAAAD4AAAAAAAAfAAAAAAAAAAAAAAAAAAB8AAAAAAAAD4AAAAAAAAAAAAAAAAAA+AAAAAAAAAfAAAAAAAAAAAAAAAAAAfAAAAAAAAAH4AAAAAAAAAAAAAAAAAPwAAAAAAAAA/AAAAAAAAAAAAAAAAAH4AAAAAAAAAH4AAAAAAAAAAAAAAAAD8AAAAAAAAAA/AAAAAAAAAAAAAAAAB+AAAAAAAAAAH4AAAAAAAAAAAAAAAA/AAAAAAAAAAA/gAAAAAAAAAAAAAAA/gAAAAAAAAAAD8AAAAAAAAAAAAAAAfgAAAAAAAAAAAfgAAAAAAAAAAAAAAPwAAAAAAAAAAAD+AAAAAAAAAAAAAAP4AAAAAAAAAAAAfwAAAAAAAAAAAAAH8AAAAAAAAAAAAB/AAAAAAAAAAAAAH8AAAAAAAAAAAAAP4AAAAAAAAAAAAD+AAAAAAAAAAAAAB/gAAAAAAAAAAAD/AAAAAAAAAAAAAAH+AAAAAAAAAAAD/AAAAAAAAAAAAAAA/4AAAAAAAAAAD/gAAAAAAAAAAAAAAD/gAAAAAAAAAD/gAAAAAAAAAAAAAAAP+AAAAAAAAAD/gAAAAAAAAAAAAAAAA/8AAAAAAAAH/gAAAAAAAAAAAAAAAAD/4AAAAAAAP/gAAAAAAAAAAAAAAAAAP/wAAAAAAf/gAAAAAAAAAAAAAAAAAAf/4AAAAD//AAAAAAAAAAAAAAAAAAAB//+AAA///AAAAAAAAAAAAAAAAAAAAD///////+AAAAAAAAAAAAAAAAAAAAAD//////4AAAAAAAAAAAAAAAAAAAAAAD/////gAAAAAAAAAAAAAAAAAAAAAAAAf//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), 0, 0);
 }
 
-function drawAllSegments() {
-  var anyChanged = false, start = 0;
+function blankOverflowGauge(grph) {
+  grph.drawImage(atob('nIqBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB///AAAAAAAAAAAAAAAAAAAAAB/////AAAAAAAAAAAAAAAAAAAA//////+AAAAAAAAAAAAAAAAAAH///////wAAAAAAAAAAAAAAAAA////////+AAAAAAAAAAAAAAAAH/////////wAAAAAAAAAAAAAAAf/////////8AAAAAAAAAAAAAAB///////////AAAAAAAAAAAAAAH///+AAA////wAAAAAAAAAAAAAf//+AAAAA///8AAAAAAAAAAAAB///gAAAAAD///AAAAAAAAAAAAD//8AAAAAAAf//gAAAAAAAAAAAP//gAAAAAAAD//4AAAAAAAAAAAf/+AAAAAAAAA//8AAAAAAAAAAB//4AAAAAAAAAP//AAAAAAAAAAD//gAAAAAAAAAD//gAAAAAAAAAH/+AAAAAAAAAAA//wAAAAAAAAAf/4AAAAAAAAAAAP/8AAAAAAAAA//gAAAAAAAAAAAD/+AAAAAAAAB//AAAAAAAAAAAAB//AAAAAAAAD/+AAAAAAAAAAAAA//gAAAAAAAH/4AAAAAAAAAAAAAP/wAAAAAAAP/wAAAAAAAAAAAAAH/4AAAAAAAf/gAAAAAAAAAAAAAD/8AAAAAAA/+AAAAAAAAAAAAAAA/+AAAAAAB/8AAAAAAAAAAAAAAAf/AAAAAAD/4AAAAAAAAAAAAAAAP/gAAAAAD/wAAAAAAAAAAAAAAAH/gAAAAAH/gAAAAAAAAAAAAAAAD/wAAAAAP/AAAAAAAAAAAAAAAAB/4AAAAAf+AAAAAAAAAAAAAAAAA/8AAAAAf+AAAAAAAAAAAAAAAAA/8AAAAA/8AAAAAAAAAAAAAAAAAf+AAAAB/4AAAAAAAAAAAAAAAAAP/AAAAB/wAAAAAAAAAAAAAAAAAH/AAAAD/wAAAAAAAAAAAAAAAAAH/gAAAH/gAAAAAAAAAAAAAAAAAD/wAAAH/AAAAAAAAAAAAAAAAAAB/wAAAP+AAAAAAAAAAAAAAAAAAA/4AAAP+AAAAAAAAAAAAAAAAAAA/4AAAf8AAAAAAAAAAAAAAAAAAAf8AAAf8AAAAAAAAAAAAAAAAAAAf8AAA/4AAAAAAAAAAAAAAAAAAAP+AAA/4AAAAAAAAAAAAAAAAAAAP+AAB/wAAAAAAAAAAAAAAAAAAAH/AAB/wAAAAAAAAAAAAAAAAAAAH/AAD/gAAAAAAAAAAAAAAAAAAAD/gAD/gAAAAAAAAAAAAAAAAAAAD/gAD/AAAAAAAAAAAAAAAAAAAAB/gAH/AAAAAAAAAAAAAAAAAAAAB/wAH+AAAAAAAAAAAAAAAAAAAAA/wAH+AAAAAAAAAAAAAAAAAAAAA/wAP+AAAAAAAAAAAAAAAAAAAAA/4AP8AAAAAAAAAAAAAAAAAAAAAf4AP8AAAAAAAAAAAAAAAAAAAAAf4Af8AAAAAAAAAAAAAAAAAAAAAf8Af4AAAAAAAAAAAAAAAAAAAAAP8Af4AAAAAAAAAAAAAAAAAAAAAP8Af4AAAAAAAAAAAAAAAAAAAAAP8Af4AAAAAAAAAAAAAAAAAAAAAP8A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/B/gAAAAAAAAAAAAAAAAAAAAAD/A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+A/wAAAAAAAAAAAAAAAAAAAAAH+Af4AAAAAAAAAAAAAAAAAAAAAP8Af4AAAAAAAAAAAAAAAAAAAAAP8Af4AAAAAAAAAAAAAAAAAAAAAP8Af4AAAAAAAAAAAAAAAAAAAAAP8Af8AAAAAAAAAAAAAAAAAAAAAf8AP8AAAAAAAAAAAAAAAAAAAAAf4AP8AAAAAAAAAAAAAAAAAAAAAf4AP+AAAAAAAAAAAAAAAAAAAAA/4AH+AAAAAAAAAAAAAAAAAAAAA/wAH+AAAAAAAAAAAAAAAAAAAAA/wAH/AAAAAAAAAAAAAAAAAAAAB/wAD/AAAAAAAAAAAAAAAAAAAAB/gAD/gAAAAAAAAAAAAAAAAAAAD/gAD/gAAAAAAAAAAAAAAAAAAAD/gAB/wAAAAAAAAAAAAAAAAAAAH/AAB/wAAAAAAAAAAAAAAAAAAAH/AAA/4AAAAAAAAAAAAAAAAAAAP+AAA/4AAAAAAAAAAAAAAAAAAAP+AAAf8AAAAAAAAAAAAAAAAAAAf8AAAf8AAAAAAAAAAAAAAAAAAAf8AAAP+AAAAAAAAAAAAAAAAAAA/4AAAP+AAAAAAAAAAAAAAAAAAA/4AAAH/AAAAAAAAAAAAAAAAAAB/wAAAH/gAAAAAAAAAAAAAAAAAD/wAAAD/wAAAAAAAAAAAAAAAAAH/gAAAB/wAAAAAAAAAAAAAAAAAH/AAAAB/4AAAAAAAAAAAAAAAAAP/AAAAA/8AAAAAAAAAAAAAAAAAf+AAAAAf+AAAAAAAAAAAAAAAAA/8AAAAAf+AAAAAAAAAAAAAAAAA/8AAAAAP/AAAAAAAAAAAAAAAAB/4AAAAAH/gAAAAAAAAAAAAAAAD/wAAAAAD/wAAAAAAAAAAAAAAAH/gAAAAAD/gAAAAAAAAAAAAAAAD/gAAAAAB/AAAAAAAAAAAAAAAAB/AAAAAAA+AAAAAAAAAAAAAAAAA+AAAAAAAcAAAAAAAAAAAAAAAAAcAAAAAAAIAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=='), 10, 10);
+}
+
+function blankFallowSegment(grph) {
+  grph.drawImage(atob('Zh2BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAIAcAAAAAAAAAAAAAAcA+AAAAAAAAAAAAAA+A/AAAAAAAAAAAAAB+AfwAAAAAAAAAAAAH8AP4AAAAAAAAAAAAP4AD8AAAAAAAAAAAAfgAB/AAAAAAAAAAAB/AAA/gAAAAAAAAAAD+AAAP4AAAAAAAAAAP4AAAH+AAAAAAAAAA/wAAAD/gAAAAAAAAD/gAAAA/4AAAAAAAAP+AAAAAP+AAAAAAAA/4AAAAAD/wAAAAAAH/gAAAAAA/+AAAAAA/+AAAAAAAP/4AAAAP/4AAAAAAAD//4AAP//gAAAAAAAAf//////8AAAAAAAAAD//////gAAAAAAAAAAP////4AAAAAAAAAAAAP//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='), 37, 129);
+}
+
+function blankFallowGauge(grph) {
+  grph.drawImage(atob('ciKBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAADgAAAAAAAAAAAAAADgAHwAAAAAAAAAAAAAAHwAP8AAAAAAAAAAAAAAf4Af+AAAAAAAAAAAAAA/8A//AAAAAAAAAAAAAB/+Af/wAAAAAAAAAAAAH/8AP/4AAAAAAAAAAAAP/4AH/8AAAAAAAAAAAAf/wAD//AAAAAAAAAAAB//gAA//wAAAAAAAAAAH/+AAAf/8AAAAAAAAAAf/8AAAP//AAAAAAAAAB//4AAAD//wAAAAAAAAH//gAAAB//8AAAAAAAAf//AAAAAf//gAAAAAAD//8AAAAAP//8AAAAAAf//4AAAAAD///wAAAAH///gAAAAAA////wAAH///+AAAAAAAP//////////4AAAAAAAD//////////gAAAAAAAA/////////+AAAAAAAAAH////////wAAAAAAAAAA///////+AAAAAAAAAAAH//////wAAAAAAAAAAAAP////4AAAAAAAAAAAAAAP//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), 0, 0);
+}
+
+function drawRadialLine(grph, qty, radius, thickness) {
+  "jit";
+  const xy = getXYBase(((2 * Math.PI) / totalMin) * qty), x = xy[0], y = xy[1];
+  const radiusInner = radius - thickness;
+  const x1 = X_C + round(radius * x), x2 = X_C + round(radiusInner * x);
+  const y1 = Y_C + round(radius * y), y2 = Y_C + round(radiusInner * y);
+  grph.drawLine(x1, y1, x2, y2);
+}
+
+function calcOffset(ring, fracStart, fracEnd) {
+  const xyStart = getXYBase(2 * Math.PI * fracStart);
+  const xyEnd = getXYBase(2 * Math.PI * fracEnd);
+  const xOffset = X_C + floor(Math.min(xyStart[0], xyEnd[0]) * RAD[ring]) - 3;
+  const yOffset = Y_C + floor(Math.min(xyStart[1], xyEnd[1]) * RAD[ring + 1]) - 3;
+  const width = (X_C - xOffset) * 2;
+  const height = Y_C + RAD[ring] + 3 - yOffset; // TODO: Optimize down
+  const xFill = X_C + round(RAD[ring] * xyStart[0]) - xOffset;
+  const yFill = Y_C + round(RAD[ring] * xyStart[1]) - yOffset;
+  return {xOffset, yOffset, width, height, xFill, yFill};
+}
+const FALLOW_OFFSET = calcOffset(RI_OVERFLOW_GAUGE, 3/8, 5/8);
+
+/** Fills in a subsection of an arc in the main or overflow gauge rings.
+ *  Not to be used for fallow gauge, which has a simpler setup.
+ */
+function drawArcGauge(gauge, dump) {
+  // TODO: Optimize small draws
+  if (null == gauge) return "null";
+  const isOverflow = gauge.idxRing > RI_GAUGE;
+  const idxCache = gauge.idxCat + (isOverflow ? 16 : 0);
+  if (null == gauge.amtToDraw) {
+    prevDrawnSegment[idxCache] = gauge;
+    return "skip";
+  }
+  if (!drawArcGauge._gRing) {
+    drawArcGauge._gRing = Graphics.createArrayBuffer(W, H, 2, {});
+  }
+  const gRing = drawArcGauge._gRing, radius = RAD[gauge.idxRing];
+  let msStart = curMs();
+  gRing.clear();
+  if (gauge.amtToDraw < (totalMin / 0.01) && false) { // TODO: Fix glitches
+    const fracStart = gauge.start / totalMin, fracEnd = gauge.end / totalMin;
+    const clipOffset = calcOffset(gauge.idxRing, fracStart, fracEnd);
+    const x1 = clipOffset.xOffset, y1 = clipOffset.yOffset;
+    gRing.setClipRect(x1, y1, x1 + clipOffset.width, y1 + clipOffset.height);
+  }
+  gRing.setColor(3);
+  if (isOverflow) blankOverflowGauge(gRing); else blankGauge(gRing);
+  const msBlank = curMs() - msStart;
+  msStart = curMs();
+  gRing.setColor(0);
+  drawRadialLine(gRing, gauge.start, radius + 1, RING_THICK_GAUGE + 2);
+  if (gauge.start > 0 || gauge.end < totalMin) {
+    drawRadialLine(gRing, gauge.end + 1, radius + 1, RING_THICK_GAUGE + 2);
+    fillBeforeBoundary(gRing, gauge.start, radius, 3);
+    if (isOverflow) fillBeforeBoundary(gRing, gauge.end + 3, radius, 3);
+  }
+  const msClear = curMs() - msStart;
+  msStart = curMs();
+  if (gauge.mid > gauge.start) {
+    // Use transparency to more reliably fill
+    drawRadialLine(gRing, gauge.mid + 1, radius + 1, RING_THICK_GAUGE + 2);
+    gRing.setColor(1);
+    fillBeforeBoundary(gRing, gauge.mid + 1, radius, 3);
+  }
+  const msFillSolid = curMs() - msStart;
+  msStart = curMs();
+  const pal = palette(at(palCat, gauge.idxCat), '#eee');
+  const imgMain = { width: W, height: H, transparent: 0, bpp: 2,
+                    buffer: gRing.buffer, palette: pal };
+  g.drawImage(imgMain, 0, 0);
+  const msDraw = curMs() - msStart;
+  prevDrawnSegment[idxCache] = gauge;
+  log_debug([msBlank, msClear, msFillSolid, msDraw]);
+  if (dump) gRing.dump();
+}
+
+function drawFallowGauge(amt, dump) {
+  if (amt === prevDrawnSegment[FALLOW_IDX]) return;
+  if (!drawFallowGauge._gRing) {
+    drawFallowGauge._gRing = Graphics.createArrayBuffer(FALLOW_OFFSET.width,
+                                                        FALLOW_OFFSET.height, 2);
+  }
+  const xOffset = FALLOW_OFFSET.xOffset, yOffset = FALLOW_OFFSET.yOffset;
+  const gRing = drawFallowGauge._gRing, radius = RAD[RI_OVERFLOW_GAUGE];
+  blankFallowGauge(gRing.clear().setColor(3));
+  const pal = palette(palCat[FALLOW_IDX], g.theme.bg);
+  if (amt > 0) {
+    const xy = getXYBase((amt + getFallowStartMin()) * 2 * Math.PI / totalMin);
+    const radiusInner = radius - RING_THICK_GAUGE;
+    const x1 = X_C + ceil(radius * xy[0]) - xOffset;
+    const x2 = X_C + floor(radiusInner * xy[0]) - xOffset;
+    const y1 = Y_C + ceil(radius * xy[1]) - yOffset;
+    const y2 = Y_C + floor(radiusInner * xy[1]) - yOffset;
+    gRing.setColor(0).drawLine(x1, y1, x2, y2);
+    // XXX: Weird pixel error
+    const xFill = FALLOW_OFFSET.xFill - 1, yFill = FALLOW_OFFSET.yFill;
+    if (gRing.getPixel(xFill, yFill) === 3) {
+      gRing.setColor(1).floodFill(xFill, yFill);
+  } else if (amt >= 2) {
+      let found = false, xFix = xFill - 1;
+      for (let yFix = yFill - 1; yFix < yFill + 2; yFix++) {
+        if (gRing.getPixel(xFix, yFix) === 3) {
+          gRing.setColor(1).floodFill(xFix, yFix);
+          log_debug('Flood at ' + xFix + ',' + yFix + ' not ' + xFill + ',' + yFill);
+          found = true; yFix+=3;
+        }
+      }
+      if (!found) {
+        log_debug('Mixed up something, pixel at ' + xFill + ',' + yFill + ' was '
+                  + gRing.getPixel(xFill, yFill));
+      }
+    }
+  }
+  const imgMain = { width: FALLOW_OFFSET.width, height: FALLOW_OFFSET.height,
+                    transparent: 0, bpp: 2, buffer: gRing.buffer, palette: pal };
+  g.drawImage(imgMain, xOffset, yOffset);
+  prevDrawnSegment[FALLOW_IDX] = amt;
+  if (dump) gRing.dump();
+}
+
+function fillBeforeBoundary(grph, qty, radius, match, distance) {
+  "jit";
+  const base = (2 * Math.PI) / totalMin;
+  distance = Math.min(distance||3, 3);
+  for (let q = qty - 1; q >= qty - distance; q--) {
+    let xy = getXYBase(base * q);
+    for (let r = radius; r >= radius - distance; r--) {
+      let x = X_C + round(xy[0] * r), y = Y_C + round(xy[1] * r);
+      let pixel = grph.getPixel(x, y);
+      if (pixel === match) {
+        grph.floodFill(x, y);
+        return true;
+      }
+    }
+  }
+  log_debug('Nothing found for ' + match + ' up to ' + distance + ' pixels before ' + qty + '@' + radius);
+}
+
+function drawEmptySegments(forceRedraw) {
+  if (totalMinDrawn === totalMin && !forceRedraw) return;
+  totalMinDrawn = totalMin;
+  const gRing = Graphics.createArrayBuffer(W, H, 4, {});
+  blankSegments(gRing.setColor(PAL_BG_ALIAS));
+  blankFallowSegment(gRing.setColor(PAL_FALLOW_ALIAS));
+
+  gRing.setColor(0);
+  drawRadialLine(gRing, -1, RAD[RI_SEGMENT] + 1, RING_THICK_SEGMENT + 2);
+  for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
+    let distance = endFCat[i] - startFCat[i];
+    if (distance > 0) {
+      gRing.setColor(0);
+      drawRadialLine(gRing, endFCat[i], RAD[RI_SEGMENT] + 1, RING_THICK_SEGMENT + 2);
+      gRing.setColor(i);
+      fillBeforeBoundary(gRing, endFCat[i], RAD[RI_SEGMENT], PAL_BG_ALIAS, distance);
+      gRing.setColor(PAL_BG_ALIAS);
+      drawRadialLine(gRing, endFCat[i], RAD[RI_SEGMENT] + 1, RING_THICK_SEGMENT + 2);
+    }
+  }
+  const img = { width: W, height: H, transparent: 0, bpp: 4,
+                buffer: gRing.buffer, palette: palRing, };
+  g.drawImage(img, 0, 0);
+  if (DEBUGGING && forceRedraw) gRing.dump();
+}
+
+function getFallowStartMin() { "jit"; return round(totalMin * 3 / 8); }
+// #endregion
+
+function getScaledFallowAmt() {
+  // Only show up to half a day, but at higher precision
+  return Math.min(Math.ceil(pendingTimeCat[FALLOW_IDX] * 2 / MIN), fallowScale);
+}
+function drawRingGauges() {
+  let start = 0, overflowGauges = newArray(16);
+  let redrawOverflow = false;
+  let msStart, msTotal = 0;
   for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
     let targetMin = targetMinFCat[i];
-    let fruitful = getMin(i), overwork = Math.max(fruitful - targetMin, 0);
-    if (drawIfChanged(getGaugeSpans(startFCat[i], fruitful - overwork, targetMin), i, 0)) {
-      anyChanged = true;
+    let minCur = getMin(i);
+    let minOverwork = Math.max(minCur - targetMin, 0);
+    msStart = curMs();
+    let gauge = getGauge(startFCat[i], minCur - minOverwork, targetMin, i, RI_GAUGE);
+    msTotal += curMs() - msStart;
+    if (null != gauge.amtToDraw) {
+      //log_debug(gauge);
+      msStart = curMs();
+      drawArcGauge(gauge);
+      log_debug(modeCat[gauge.idxCat] + ' took ' + (curMs() - msStart) + 'ms');
     }
-    if (0 === overwork) continue;
-    if (drawIfChanged(getGaugeSpans(start, overwork, overwork + 5), i, 1)) {
-      anyChanged = true;
+    if (0 !== minOverwork) {
+      gauge = getGauge(start, minOverwork, minOverwork, i, RI_OVERFLOW_GAUGE);
+      overflowGauges[i] = gauge;
+      if (0 !== gauge.amtToDraw) redrawOverflow = true;
+      start += minOverwork;
     }
-    start += overwork + 5;
   }
 
   start = 0;
   for (let i = -FIRST_DECENTER_IDX; i < settings.decentering.length; i++) {
     let decenter = getMin(-i);
-    if (0 === decenter) continue;
-    if (drawIfChanged(getGaugeSpans(start, decenter, decenter + 5, true), -i, 1)) {
-      anyChanged = true;
+    if (0 !== decenter) {
+      let gauge = getGauge(start, decenter, decenter, -i, RI_OVERFLOW_GAUGE);
+      setAt(overflowGauges, -i, gauge);
+      if (0 !== gauge.amtToDraw) redrawOverflow = true;
+      start += decenter;
+  }
+  }
+
+  log_debug('Gauges took ' + msTotal + 'ms');
+  msStart = curMs();
+  drawFallowGauge(getScaledFallowAmt());
+  log_debug('Fallow took ' + (curMs() - msStart) + 'ms');
+
+  if (redrawOverflow) {
+    blankOverflowGauge(g.setColor(g.theme.bg));
+    for (let i = FIRST_FRUITFUL_IDX; i < overflowGauges.length; i++) {
+      //log_debug(overflowGauges[i] || i);
+      if (overflowGauges[i]) {
+        msStart = curMs();
+        drawArcGauge(overflowGauges[i]);
+        log_debug('Drawing overflow for ' + at(modeCat, overflowGauges[i].idxCat)
+                  + ' took ' + (curMs() - msStart) + 'ms');
+      }
     }
-    start += decenter + 5;
   }
-
-  // Display a quarter circle
-  const fallowScale = Math.round(totalMin / 4), lowCenterStart = fallowScale * 1.5;
-  // Only show up to half a day, but at higher precision
-  var fallowAmt = Math.min(Math.ceil(pendingTimeCat[FALLOW_IDX] * 2 / MIN), fallowScale);
-  if (drawIfChanged(getGaugeSpans(lowCenterStart, fallowAmt, fallowScale), FALLOW_IDX, 1)) {
-    anyChanged = true;
-  }
-
-  if (anyChanged) drawTrimmingCircles();
 }
 
 var subModeDrawnAt;
 function clearCurSubMode() {
   g.reset().setColor(g.theme.bg);
-  var y = CM_Y + CM_H / 2 + 1;
-  g.fillRect((W / 2) - CM_SUB_W, y, (W / 2) + CM_SUB_W, y + CM_SUB_H);
+  g.fillRect(X_C - CM_SUB_W, CM_SUB_Y, X_C + CM_SUB_W, CM_SUB_Y + CM_SUB_H);
 }
 function drawCurSubMode(text) {
   subModeDrawnAt = Date.now();
@@ -628,71 +858,24 @@ function drawFace() {
   var date = new Date();
 
   let msTime = measureEffectDuration(() => drawTime(date));
-  let msSegments = measureEffectDuration(() => drawAllSegments());
-  let msCurMode = measureEffectDuration(() => drawCurMode());
+  let msEmpty = measureEffectDuration(() => drawEmptySegments());
+  let msFilled = measureEffectDuration(() => drawRingGauges());
   let msClockInfo = measureEffectDuration(() => {
     if (curClockInfo) curClockInfo.redraw();
   });
   //drawCount++;
   var overallMs = curMs() - Math.round(date.valueOf());
-  log_debug(`${overallMs}ms for drawing` +
-            ` (mode: ${msCurMode}, segments: ${msSegments}, time: ${msTime}, CI: ${msClockInfo})`);
+  log_debug(`${overallMs}ms for drawing (time: ${msTime}, ` +
+            `segments: ${msFilled}+${msEmpty}, CI: ${msClockInfo})`);
   // Expensive if you aren't resetting the watch all the time
   if (DEBUGGING) saveSettings(settings);
-}
-
-function addPoint(arr, qty, radius, scaleMax) {
-  var angle = ((2 * Math.PI) / scaleMax) * qty;
-  var x = W / 2 + radius * Math.sin(angle);
-  var y = H / 2 + radius * Math.cos(angle + Math.PI);
-  arr.push(Math.round(x), Math.round(y));
-}
-
-function polyArray(start, end, radius, scaleMax) {
-  const subsegment = scaleMax / 30;
-  if (start == end) return []; // No array to draw if the points are the same.
-  let startOrigin = start;
-  let endOrigin = end;
-  start %= scaleMax;
-  end %= scaleMax;
-  if (start == 0 && startOrigin != 0) start = scaleMax;
-  if (end == 0 && endOrigin != 0) end = scaleMax;
-  if (start > end) end += scaleMax;
-  var array = [];
-  for (let i = start; i < end; i += subsegment) {
-    addPoint(array, i, radius, scaleMax);
-  }
-  addPoint(array, end, radius, scaleMax);
-  // Inner side
-  for (let i = end; i > start; i -= subsegment) {
-    addPoint(array, i, radius - ringThick, scaleMax);
-  }
-  addPoint(array, start, radius - ringThick, scaleMax);
-  //log_debug("Poly Arr: " + array);
-  return array;
-}
-
-function drawSegment(start, endFill, endGray, palette, idxRing) {
-  // Create persistent `buf` inside the function scope
-  if (!drawSegment._buf) {
-    drawSegment._buf = Graphics.createArrayBuffer(W, H, 2, {});
-  }
-  const buf = drawSegment._buf;
-  let img = {
-    width: W, height: H, transparent: 0, bpp: 2, palette: palette, buffer: buf.buffer
-  };
-  let radius = radiusOuterRing - (idxRing * ringIterOffset);
-  buf.clear();
-  buf.setColor(2).fillPoly(polyArray(start, endFill, radius, totalMin));
-  //if (endFill >= endGray) return;  // No need to add the unfilled arc
-  buf.setColor(1).fillPoly(polyArray(endFill, endGray, radius, totalMin));
-  g.drawImage(img, 0, 0);
-  return;
 }
 
 function clearDrawingCache() {
   prevDrawnMode = null;
   prevDrawnTime = null;
+  totalMinDrawn = 0;
+  blankOverflowGauge(g.setColor(g.theme.bg));
   prevDrawnSegment.fill(null);
   lastCIValue = null;
   lastCIName = '';
