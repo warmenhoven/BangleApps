@@ -131,14 +131,11 @@ function normalizeSettings(s) {
     s.fallow_buffer = s.total_sec_by_cat[0];
   }
 
-  s.hour_color = s.hour_color || def.hour_color;
-  s.hour_fg = s.hour_fg || def.hour_fg;
-  s.clock_info_color = s.clock_info_color || def.clock_info_color;
-  s.clock_info_fg = s.clock_info_fg || def.clock_info_fg;
-  s.clock_info_gy = s.clock_info_gy || def.clock_info_gy;
-  s.fallow_denominator = s.fallow_denominator || def.fallow_denominator;
-  s.cur_mode = s.cur_mode || def.cur_mode;
-  s.fallow_buffer = s.fallow_buffer || def.fallow_buffer;
+  for (let k in def) {
+    if (k == 'fruitful' || k == 'decentering' || k == 'total_sec_by_cat') continue;
+    s[k] = s[k] || def[k];
+  }
+
   return s;
 }
 function denormalizeSettings(s, pendingTimeCat) {
@@ -213,10 +210,10 @@ var palCI;
 // FCat arrays are shorter than others but have synchronized indexing as far as possible
 var targetMinFCat, startFCat, endFCat;
 
-const CLK_Y = H / 2 - 12;
-const CLK_HALF_W = 112 / 2, CLK_HALF_H = 46 / 2, CLK_BG_Y = H / 2 - 17;
+const CLK_Y = Y_C + 6;
+const CLK_HALF_W = 112 / 2, CLK_HALF_H = 46 / 2, CLK_BG_Y = CLK_Y - 5;
 
-const CM_SUB_W = 32, CM_SUB_H = 20;
+const CM_SUB_W = 32, CM_SUB_H = 22;
 const CM_SUB_Y = CLK_Y + 20;
 
 const CI_GAUGE_Y = 53, CI_GAUGE_W = 100, CI_GAUGE_X = X_C - CI_GAUGE_W / 2, CI_GAUGE_H = 6;
@@ -240,7 +237,7 @@ const RAD = calcRadii();
 
 const nextUpdateMs = 60000;
 
-var prevDrawnMode, prevDrawnTime, prevDrawnSegment = [];
+var prevDrawnTime, prevDrawnSegment = [];
 
 const HR_RESET = 3; // Reset (and eventually save) totals at a time few will be awake
 
@@ -285,7 +282,7 @@ function addFruitful(i, sec) {
   const secCheckWindow = Math.round((new Date().valueOf() - lastBuzzCheck) / 1000);
   if (result >= secThreshold && result < secThreshold + secCheckWindow) {
     log_debug('Reached target for ' + modeCat[i] + ' (' + targetMin + ' min)');
-    drawCurSubMode('Done!');
+    setTransientMsg('Done!');
     // TODO: Improve
     buzz.pattern('=');
   }
@@ -319,10 +316,10 @@ function useDecenter(i, sec) {
   if (0 === remaining) {
     log_debug(`${sec} - ${remaining} = ${excess_sec} (vs ${secCheckWindow}) => ${newTotal}`);
     if (excess_sec > 0 && excess_sec < secCheckWindow) {
-      drawCurSubMode('<0min');
+      setTransientMsg('<0min');
       buzz.pattern('==  ==');
     } else if (newTotal % (5 * MIN) < secCheckWindow) {
-      drawCurSubMode('-5m!');
+      setTransientMsg('-5m!');
       buzz.pattern('= = = = =');
     }
   } else {
@@ -334,7 +331,7 @@ function useDecenter(i, sec) {
     for (let warn of earlyWarning) {
       if (remaining <= warn.threshold && remaining > warn.threshold - secCheckWindow) {
         log_debug(`${remaining} just dropped below ${warn.threshold} (by < ${secCheckWindow})`);
-        drawCurSubMode(`${warn.threshold / MIN}min`);
+        setTransientMsg(`${warn.threshold / MIN}min`);
         buzz.pattern(warn.pattern);
         break;
       }
@@ -494,6 +491,7 @@ function loadRuntimeSettings() {
 
   settings.last_reset = settings.last_reset || ymd(new Date());
   updateDerivedRingVars();
+  selectButton(settings.cur_mode);
   setInterval(updateTotals, settings.fallow_denominator * 1000);
 }
 
@@ -597,6 +595,10 @@ function blankFallowGauge(grph) {
   grph.drawImage(atob('ciKBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAABAADgAAAAAAAAAAAAAADgAHwAAAAAAAAAAAAAAHwAP8AAAAAAAAAAAAAAf4Af+AAAAAAAAAAAAAA/8A//AAAAAAAAAAAAAB/+Af/wAAAAAAAAAAAAH/8AP/4AAAAAAAAAAAAP/4AH/8AAAAAAAAAAAAf/wAD//AAAAAAAAAAAB//gAA//wAAAAAAAAAAH/+AAAf/8AAAAAAAAAAf/8AAAP//AAAAAAAAAB//4AAAD//wAAAAAAAAH//gAAAB//8AAAAAAAAf//AAAAAf//gAAAAAAD//8AAAAAP//8AAAAAAf//4AAAAAD///wAAAAH///gAAAAAA////wAAH///+AAAAAAAP//////////4AAAAAAAD//////////gAAAAAAAA/////////+AAAAAAAAAH////////wAAAAAAAAAA///////+AAAAAAAAAAAH//////wAAAAAAAAAAAAP////4AAAAAAAAAAAAAAP//4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'), 0, 0);
 }
 
+function clearOverflow() {
+  blankOverflowGauge(g.setColor(g.theme.bg));
+}
+
 function drawRadialLine(grph, qty, radius, thickness) {
   "jit";
   const xy = getXYBase(((2 * Math.PI) / totalMin) * qty), x = xy[0], y = xy[1];
@@ -696,7 +698,7 @@ function drawFallowGauge(amt, dump) {
     const xFill = FALLOW_OFFSET.xFill - 1, yFill = FALLOW_OFFSET.yFill;
     if (gRing.getPixel(xFill, yFill) === 3) {
       gRing.setColor(1).floodFill(xFill, yFill);
-  } else if (amt >= 2) {
+    } else if (amt >= 2) {
       let found = false, xFix = xFill - 1;
       for (let yFix = yFill - 1; yFix < yFill + 2; yFix++) {
         if (gRing.getPixel(xFix, yFix) === 3) {
@@ -802,7 +804,7 @@ function drawRingGauges() {
       setAt(overflowGauges, -i, gauge);
       if (0 !== gauge.amtToDraw) redrawOverflow = true;
       start += decenter;
-  }
+    }
   }
 
   log_debug('Gauges took ' + msTotal + 'ms');
@@ -811,7 +813,7 @@ function drawRingGauges() {
   log_debug('Fallow took ' + (curMs() - msStart) + 'ms');
 
   if (redrawOverflow) {
-    blankOverflowGauge(g.setColor(g.theme.bg));
+    clearOverflow();
     for (let i = FIRST_FRUITFUL_IDX; i < overflowGauges.length; i++) {
       //log_debug(overflowGauges[i] || i);
       if (overflowGauges[i]) {
@@ -824,32 +826,29 @@ function drawRingGauges() {
   }
 }
 
-var subModeDrawnAt;
-function clearCurSubMode() {
+var transientMsgDrawnAt = 0, transientMsg;
+function clearTransientMsg() {
   g.reset().setColor(g.theme.bg);
   g.fillRect(X_C - CM_SUB_W, CM_SUB_Y, X_C + CM_SUB_W, CM_SUB_Y + CM_SUB_H);
 }
-function drawCurSubMode(text) {
-  subModeDrawnAt = Date.now();
-  clearCurSubMode();
-  g.setFont('Vector', 18).setColor(g.theme.fg).setFontAlign(0, 0);
-  g.drawString(text, W / 2, CM_Y + CM_H - 3);
-}
-
-function drawCurMode() {
-  var i = settings.cur_mode;
-  if (prevDrawnMode !== i || subModeDrawnAt && subModeDrawnAt < Date.now() + (MIN * 1000)) {
-    subModeDrawnAt = null;
-    clearCurSubMode();
+function setTransientMsg(text) {
+  if (text) {
+    transientMsgDrawnAt = Date.now();
+  } else {
+    transientMsgDrawnAt = 0;
   }
-  if (prevDrawnMode === i) return;
-  prevDrawnMode = i;
-  var text = at(modeCat, i), bg = at(palCat, i)[2];
-  g.reset().setColor(bg);
-  g.fillRect((W / 2) - CM_W, CM_Y - CM_H/2, (W / 2) + CM_W, CM_Y + CM_H/2);
-
-  text = g.findFont(text, {w: CM_W * 2, h: CM_H }).text;
-  g.setColor(g.theme.fg).setFontAlign(0, 0).drawString(text, W / 2, CM_Y);
+  transientMsg = text;
+  drawTransientMsg();
+}
+function drawTransientMsg() {
+  if (null == transientMsgDrawnAt) return;
+  clearTransientMsg();
+  if ((transientMsgDrawnAt + (MIN * 1000)) < Date.now()) {
+    transientMsgDrawnAt = null;
+  } else {
+    g.setFont('Vector', 20).setColor(g.theme.fg).setFontAlign(0, -1);
+    g.drawString(transientMsg, X_C, CM_SUB_Y);
+  }
 }
 
 var inMenu = false, curClockInfo;
@@ -860,22 +859,22 @@ function drawFace() {
   let msTime = measureEffectDuration(() => drawTime(date));
   let msEmpty = measureEffectDuration(() => drawEmptySegments());
   let msFilled = measureEffectDuration(() => drawRingGauges());
+  let msTransient = measureEffectDuration(() => drawTransientMsg());
   let msClockInfo = measureEffectDuration(() => {
     if (curClockInfo) curClockInfo.redraw();
   });
   //drawCount++;
   var overallMs = curMs() - Math.round(date.valueOf());
-  log_debug(`${overallMs}ms for drawing (time: ${msTime}, ` +
+  log_debug(`${overallMs}ms for drawing (time: ${msTime}, transient: ${msTransient}, ` +
             `segments: ${msFilled}+${msEmpty}, CI: ${msClockInfo})`);
   // Expensive if you aren't resetting the watch all the time
   if (DEBUGGING) saveSettings(settings);
 }
 
 function clearDrawingCache() {
-  prevDrawnMode = null;
   prevDrawnTime = null;
   totalMinDrawn = 0;
-  blankOverflowGauge(g.setColor(g.theme.bg));
+  clearOverflow();
   prevDrawnSegment.fill(null);
   lastCIValue = null;
   lastCIName = '';
@@ -912,6 +911,45 @@ class Button {
     this.size = size;
     this.color = color;
     this.callback = callback;
+    this.selected = false;
+    const maxX = W - 1, maxY = H - 1, pad = 5;
+    let yA, yB;
+    switch (corner) {
+      case 'tl':
+        this.alignment = [-1, -1];
+        yA = size; yB = 0;
+        break;
+      case 'bl':
+        this.alignment = [-1, 1];
+        yA = maxY - size; yB = maxY;
+        break;
+      case 'tr':
+        this.alignment = [1, -1];
+        yA = 0; yB = size;
+        break;
+      case 'br':
+        this.alignment = [1, 1];
+        yA = maxY; yB = maxY - size;
+        break;
+    }
+    const isRight = this.alignment[0] > 0, isBottom = this.alignment[1] > 0;
+    this.polyOuter = [
+      isRight ? maxX : 0,
+      isBottom ? maxY : 0,
+      isRight ? maxX - size : 0,
+      yA,
+      isRight ? maxX : size,
+      yB
+    ];
+    this.polyInner = [
+      isRight ? maxX - pad : pad,
+      isBottom ? maxY - pad : pad,
+      isRight ? maxX - size + pad : pad,
+      // XXX: Confusing, I probably botched the coordinate order somehow
+      yA + ((isRight && isBottom ? -pad : pad)),
+      isRight ? maxX - pad : size - pad,
+      yB - ((isRight && isBottom ? -pad : pad))
+    ];
   }
   // if pressed, fire the callback
   check(x, y) {
@@ -926,17 +964,19 @@ class Button {
     return false;
   }
   draw() {
-    g.setColor(this.color);
-    // TODO: Improve appearance (curves? corner frames?)
-    switch (this.corner) {
-      case 'tl':
-        g.fillPoly([0, 0, 0, this.size, this.size, 0]); break;
-      case 'bl':
-        g.fillPoly([0, H, 0, H - this.size, this.size, H]); break;
-      case 'tr':
-        g.fillPoly([W, 0, W - this.size, 0, W, this.size]); break;
-      case 'br':
-        g.fillPoly([W, H, W - this.size, H, W, H - this.size]); break;
+    // TODO: Optimize redraws? There aren't that many...
+    if (this.selected) {
+      g.setColor(this.color).fillPoly(this.polyOuter);
+      g.setColor(g.theme.fg).setFont('Vector', 22);
+      g.setFontAlign(this.alignment[0], this.alignment[1]);
+      const xOffset = this.alignment[0] * -2;
+      const yOffset = this.alignment[1] * -2;
+      g.drawString(this.name[0], (W + xOffset) % W, (H + yOffset) % H);
+    } else if (!Bangle.isLocked()) {
+      g.setColor(this.color).fillPoly(this.polyOuter);
+      g.setColor(g.theme.bg).fillPoly(this.polyInner);
+    } else {
+      g.setColor(g.theme.bg).fillPoly(this.polyOuter);
     }
   }
 }
@@ -957,7 +997,33 @@ Bangle.on('touch', function (button, xy) {
   }
 });
 
-var prevSpentMode; // TODO: Reunify with prevDrawnMode? Probably not
+Bangle.on('lock', () => { buttons.forEach(b => b.draw()); });
+
+var prevSpentMode;
+function selectButton(newMode) {
+  if (prevSpentMode >= FIRST_FRUITFUL_IDX) {
+    buttons[0].selected = false;
+  } else if (prevSpentMode <= FIRST_DECENTER_IDX) {
+    buttons[2].selected = false;
+  } else if (prevSpentMode === FALLOW_IDX) {
+    buttons[1].selected = false;
+  }
+  if (newMode >= FIRST_FRUITFUL_IDX) {
+    lastFruitful = newMode;
+    buttons[0].selected = true;
+    buttons[0].color = palCat[newMode];
+    buttons[0].name = modeCat[newMode];
+  } else if (newMode <= FIRST_DECENTER_IDX) {
+    lastDecentering = newMode;
+    buttons[2].selected = true;
+    buttons[2].color = at(palCat, newMode);
+    buttons[2].name = at(modeCat, newMode);
+  } else {
+    buttons[1].selected = true;
+  }
+  buttons.forEach(b => b.draw());
+}
+
 function setCurMode(newMode) {
   //log_debug('Setting cur_mode to ' + newMode);
   prevSpentMode = settings.cur_mode;
@@ -977,13 +1043,19 @@ function setCurMode(newMode) {
   }
   updateTotals();
   settings.cur_mode = newMode;
-  E.showMenu();
-  restoreCachedFace();
+  if (inMenu) {
+    E.showMenu();
+    restoreCachedFace();
+  }
   if (earlySwitch) {
     settings.early_switches++;
-    drawCurSubMode('Early!');
+    setTransientMsg('Early!');
+  } else {
+    // XXX: Weird place to remove transient messages
+    setTransientMsg();
   }
   saveSettings(settings);
+  selectButton(newMode);
 }
 
 function fixLateStart(sec) {
@@ -1029,7 +1101,12 @@ function pickLateStartAmt(back) {
   inMenu = true;
 }
 
+var lastFruitful = FIRST_FRUITFUL_IDX, lastDecentering = FIRST_DECENTER_IDX;
 function pickFruitful() {
+  if (settings.cur_mode < FIRST_FRUITFUL_IDX) {
+    setCurMode(lastFruitful);
+    return;
+  }
   var menu = { "": { title: '-- Fruitful --', back: restoreCachedFace } };
   for (let i = FIRST_FRUITFUL_IDX; i < settings.fruitful.length; i++) {
     let newMode = i, title = modeCat[newMode];
@@ -1053,6 +1130,10 @@ function pickRecenter() {
 }
 
 function pickDecenter() {
+  if (settings.cur_mode > FIRST_DECENTER_IDX) {
+    setCurMode(lastDecentering);
+    return;
+  }
   var menu = { "": { title: '-- Decentering --', remove: () => { inMenu = false; } } };
   for (let i = -FIRST_DECENTER_IDX; i < settings.decentering.length; i++) {
     let newMode = -i, title = at(modeCat, newMode);
@@ -1067,7 +1148,7 @@ function pickDecenter() {
 }
 
 var buttons = [new Button('fruitful', 'tr', 40, '#0f0', pickFruitful),
-               new Button('recenter', 'br', 40, '#860', pickRecenter),
+               new Button(' recenter', 'br', 40, '#860', pickRecenter),
                new Button('decenter', 'bl', 40, '#f00', pickDecenter)];
 
 // timeout used to update every minute
@@ -1090,7 +1171,6 @@ function logWriteCurTotals() {
 
 function resetTotals() {
   const now = new Date();
-  g.setColor(g.theme.bg).fillCircle(W / 2, H / 2, radiusOuterRing - ringIterOffset);
   clearDrawingCache();
   logWriteCurTotals();
   settings.early_switches = 0;
