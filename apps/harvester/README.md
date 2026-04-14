@@ -14,10 +14,11 @@ of some fraction (1/3 by default) for later resting, which can be spent as you
 see fit (like Pomodoro, but more flexible). Running out of this “fallow” buffer 
 while doing something centering just leaves it empty (so you can eat a meal or 
 go to sleep), but running out while doing something divergent will count up the 
-deficit and show a red gauge segment for the total.
+deficit and show a counter-clockwise gauge segment for each category.
 
-The outer ring shows fruitful categories, with dimmed colors filling out segments 
-for the targets you haven’t yet reached. (There are six fruitful categories below.)
+The outer ring shows fruitful categories, with a thinner ring of colored segments 
+matching your targets just inside. (There are seven fruitful categories below, 
+one of which has surpassed its target.)
 
 ![](fruitful-partial.png)
 
@@ -25,8 +26,8 @@ If you surpass a target for a particular fruitful category, or you run over the
 fallow buffer in a divergent mode, those will appear in a ring inside the outer 
 one, starting from the top center and going clockwise for fruitful, and 
 counter-clockwise for divergent. These have no fixed duration and will be run 
-together with small dim margins between. (Below, you can see a few minutes in 
-each of three divergent categories I set up.)
+together. (Below, you can see a few minutes in each of three divergent categories 
+I set up, as well as some time in a couple of fruitful categories.)
 
 ![](divergent.png)
 
@@ -34,7 +35,8 @@ each of three divergent categories I set up.)
 You can configure categories from the App Loader’s web interface using the floppy 
 disk icon near the favorite/heart, or from the watch’s normal settings, although 
 the latter can’t currently set category names, so it will just put in placeholders. 
-Other settings are all handled from the watch currently.
+Other settings are all handled from the watch currently, such as hour color, the 
+color for the clock-info gauge, and the ratio of fruitful time to fallow buffer.
 
 If you want to focus more on your week as a whole, you can enable target adaptation 
 in Settings for individual fruitful categories. This will sum up your total 
@@ -42,12 +44,18 @@ progress so far in a week and increase or decrease your relevant targets so you
 can smooth out daily variations and achieve the overall target for the week if 
 you hit the target on the last day.
 
+You can also specify customized targets for specific days of the week, such as 0 
+for Work on weekends, or a higher target for Reflection on a given day to enable 
+deeper thought.
+
 ## Usage Details
 Switch modes by using the three corner buttons. If you realize you should have 
 switched sooner, tap the correct button again and scroll through the menu if 
 needed to find the last option, `(Fix start...)`. This will let you select the 
 number of minutes to retroactively move from the previous mode to the current,
-if there’s a way to make that work.
+if there’s a way to make that work. The most recently-selected category in either 
+fruitful or divergent will be preselected so you can switch back and forth 
+between fallow and fruitful time more quickly.
 
 The clock will buzz with increasing urgency as you run down the fallow buffer in 
 a divergent mode, and also every few minutes after that. It will also buzz in a 
@@ -85,10 +93,8 @@ please post in [this fork’s issues](https://github.com/TuggyNE/BangleApps/issu
 * Uses the [BloggerSansLight](https://www.1001fonts.com/rounded-fonts.html?page=3) font, which is free for commercial use
 
 ## Future Development
-* Add per-weekday scheduling for different targets
-* Remove triangle buttons in favor of something less visually noisy
 * Support fast loading
 * Allow configuring buzz patterns
 * Show tick marks between the rings to scale hours
-* Improve hour coloring, perhaps by configuration
-* Configure coloring for fallow buffer, clock-info gauge
+* Configure coloring for fallow buffer
+* Show some weekly stats from the watch directly

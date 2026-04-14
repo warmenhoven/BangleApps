@@ -10,7 +10,7 @@
   "type": "clock",
   "tags": "clock,tool,clkinfo",
   "supports" : ["BANGLEJS2"],
-  "screenshots": [{"url":"basic-dark.png"}],
+  "screenshots": [{"url":"basic-dark.png"}, {"url":"basic-light.png"}],
   "readme": "README.md",
   "storage": [
     {"name":"harvester.app.js","url":"app.js"},
