@@ -368,7 +368,10 @@ function lateStartAdjustments(totalSecByCat, curMode, prevMode, secDesired) {
     // Subtract fruitful time spent in other category
   } else if (curMode >= FIRST_FRUITFUL_IDX && FALLOW_IDX === prevMode) {
     // (Will re-accumulate additional fallow time)
-    secAvailable = Math.min(secDesired, secFallowFixupEligible);
+    // TODO: Re-add bound with another var to track fallow *start*
+    secAvailable = secDesired;
+    let secSpare = E.clip(secDesired, 0, secFallowFixupEligible);
+    return [secAvailable, secSpare];
   } else if (curMode <= FIRST_DECENTER_IDX && prevMode >= FIRST_FRUITFUL_IDX) {
     // Subtract fruitful time and use up fallow time
     return [secDesired, secAvailable];
@@ -999,13 +1002,13 @@ Bangle.on('touch', function (button, xy) {
 
 Bangle.on('lock', () => { buttons.forEach(b => b.draw()); });
 
-var prevSpentMode;
 function selectButton(newMode) {
-  if (prevSpentMode >= FIRST_FRUITFUL_IDX) {
+  const curMode = settings.cur_mode;
+  if (curMode >= FIRST_FRUITFUL_IDX) {
     buttons[0].selected = false;
-  } else if (prevSpentMode <= FIRST_DECENTER_IDX) {
+  } else if (curMode <= FIRST_DECENTER_IDX) {
     buttons[2].selected = false;
-  } else if (prevSpentMode === FALLOW_IDX) {
+  } else if (curMode === FALLOW_IDX) {
     buttons[1].selected = false;
   }
   if (newMode >= FIRST_FRUITFUL_IDX) {
@@ -1024,29 +1027,38 @@ function selectButton(newMode) {
   buttons.forEach(b => b.draw());
 }
 
+var prevSpentMode, tsModeSwitched = curMs();
 function setCurMode(newMode) {
   //log_debug('Setting cur_mode to ' + newMode);
-  prevSpentMode = settings.cur_mode;
-  if (prevSpentMode >= FIRST_FRUITFUL_IDX) lastBuzzCheck = new Date().valueOf();
-  const earlySwitch = prevSpentMode < FIRST_FRUITFUL_IDX &&
-                      newMode >= FIRST_FRUITFUL_IDX && pendingTimeCat[FALLOW_IDX] > 0;
-  if (earlySwitch) log_debug(`Switching early with tsFallowRanDry at ${tsFallowRanDry}`);
-  if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX && tsFallowRanDry) {
-    secFallowFixupEligible -= Math.round((curMs() - tsFallowRanDry) / 1000);
-    if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
-    tsFallowRanDry = null;
-  } else if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX) {
-    secFallowFixupEligible -= pendingTimeCat[FALLOW_IDX];
-    if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
-  } else if (FALLOW_IDX === newMode) {
-    secFallowFixupEligible = pendingTimeCat[FALLOW_IDX];
+  const sameKind = Math.sign(newMode) === Math.sign(settings.cur_mode);
+  let earlySwitch = false;
+  if (!sameKind || curMs() - tsModeSwitched >= MIN * 1000 ) {
+    prevSpentMode = settings.cur_mode;
+    if (prevSpentMode >= FIRST_FRUITFUL_IDX) lastBuzzCheck = new Date().valueOf();
+    earlySwitch = prevSpentMode < FIRST_FRUITFUL_IDX &&
+                       newMode >= FIRST_FRUITFUL_IDX && pendingTimeCat[FALLOW_IDX] > 0;
+    if (earlySwitch && tsFallowRanDry) log_debug(`Switching early but with tsFallowRanDry at ${tsFallowRanDry}`);
+    if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX && tsFallowRanDry) {
+      secFallowFixupEligible -= Math.round((curMs() - tsFallowRanDry) / 1000);
+      if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
+      tsFallowRanDry = null;
+    } else if (FALLOW_IDX === prevSpentMode && newMode >= FIRST_FRUITFUL_IDX) {
+      secFallowFixupEligible -= pendingTimeCat[FALLOW_IDX];
+      if (secFallowFixupEligible < 0) secFallowFixupEligible = 0;
+    } else if (FALLOW_IDX === newMode) {
+      secFallowFixupEligible = pendingTimeCat[FALLOW_IDX];
+    }
+  } else {
+    log_debug('Quick fixup opportunity');
   }
   updateTotals();
-  settings.cur_mode = newMode;
   if (inMenu) {
     E.showMenu();
     restoreCachedFace();
   }
+  selectButton(newMode);
+  settings.cur_mode = newMode;
+  tsModeSwitched = curMs();
   if (earlySwitch) {
     settings.early_switches++;
     setTransientMsg('Early!');
@@ -1055,7 +1067,6 @@ function setCurMode(newMode) {
     setTransientMsg();
   }
   saveSettings(settings);
-  selectButton(newMode);
 }
 
 function fixLateStart(sec) {
