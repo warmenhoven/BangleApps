@@ -210,14 +210,12 @@ var palCI;
 // FCat arrays are shorter than others but have synchronized indexing as far as possible
 var targetMinFCat, startFCat, endFCat;
 
-const CLK_Y = Y_C + 6;
+const CLK_Y = Y_C + 3;
 const CLK_HALF_W = 112 / 2, CLK_HALF_H = 46 / 2, CLK_BG_Y = CLK_Y - 5;
 
-const CM_SUB_W = 32, CM_SUB_H = 22;
-const CM_SUB_Y = CLK_Y + 20;
-
-const CI_GAUGE_Y = 53, CI_GAUGE_W = 100, CI_GAUGE_X = X_C - CI_GAUGE_W / 2, CI_GAUGE_H = 6;
-const CI_TEXT_Y = CI_GAUGE_Y - 16, CI_TEXT_W = 42, CI_TEXT_X = X_C - CI_TEXT_W / 2, CI_TEXT_H = 14;
+const CI_GAUGE_Y = CLK_BG_Y + CLK_HALF_H + 5;
+const CI_GAUGE_W = 100, CI_GAUGE_X = X_C - CI_GAUGE_W / 2, CI_GAUGE_H = 6;
+const CI_TEXT_Y = 36, CI_TEXT_W = 64, CI_TEXT_X = X_C - CI_TEXT_W / 2, CI_TEXT_H = 24;
 
 const RI_GAUGE = 0, RI_SEGMENT = 1, RI_OVERFLOW_GAUGE = 2;
 /* const RI_FALLOW_SEGMENT = 3, RI_FALLOW_INNER = 4, RI_FALLOW_GAUGE = 5; */
@@ -512,14 +510,13 @@ function drawTime(date) {
   prevDrawnTime = hh + mm;
 
   setLargeFont();
-  const wHalfS = W / 2;
-  g.clearRect(wHalfS - CLK_HALF_W, CLK_BG_Y - CLK_HALF_H,
-              wHalfS + CLK_HALF_W, CLK_BG_Y + CLK_HALF_H);
+  g.clearRect(X_C - CLK_HALF_W, CLK_BG_Y - CLK_HALF_H,
+              X_C + CLK_HALF_W, CLK_BG_Y + CLK_HALF_H);
   g.setColor(settings.hour_fg).setFontAlign(1, 0);  // right aligned
-  g.drawString(hh, wHalfS - 1, CLK_Y);
+  g.drawString(hh, X_C - 1, CLK_Y);
 
   g.setColor(g.theme.fg).setFontAlign(-1, 0);       // left aligned
-  g.drawString(mm, wHalfS + 1, CLK_Y);
+  g.drawString(mm, X_C + 1, CLK_Y);
 }
 
 function draw() {
@@ -830,9 +827,9 @@ function drawRingGauges() {
 }
 
 var transientMsgDrawnAt = 0, transientMsg;
-function clearTransientMsg() {
-  g.reset().setColor(g.theme.bg);
-  g.fillRect(X_C - CM_SUB_W, CM_SUB_Y, X_C + CM_SUB_W, CM_SUB_Y + CM_SUB_H);
+function clearTransientOrCIText(col) {
+  g.setColor(col);
+  g.fillRect(CI_TEXT_X - 1, CI_TEXT_Y - 2, CI_TEXT_X + CI_TEXT_W + 1, CI_TEXT_Y + CI_TEXT_H + 2);
 }
 function setTransientMsg(text) {
   if (text) {
@@ -843,14 +840,28 @@ function setTransientMsg(text) {
   transientMsg = text;
   drawTransientMsg();
 }
+// TODO: Collapse these together more?
+function drawTransientOrCIText(msg) {
+  if (!msg) return;
+  g.setFontAlign(0, -1);
+  const disp = g.findFont(msg, {w: CI_TEXT_W, h: CI_TEXT_H, wrap: false, trim: true});
+  g.drawString(disp.text, X_C, CI_TEXT_Y + 2);
+}
 function drawTransientMsg() {
   if (null == transientMsgDrawnAt) return;
-  clearTransientMsg();
+  clearTransientOrCIText(g.theme.bg);
   if ((transientMsgDrawnAt + (MIN * 1000)) < Date.now()) {
     transientMsgDrawnAt = null;
+    transientMsg = null;
+    if (curClockInfo) {
+      lastCIName = '';
+      curClockInfo.redraw();
+    }
   } else {
-    g.setFont('Vector', 20).setColor(g.theme.fg).setFontAlign(0, -1);
-    g.drawString(transientMsg, X_C, CM_SUB_Y);
+    g.setColor(g.theme.fg);
+    g.drawRect(CI_TEXT_X - 1, CI_TEXT_Y - 2, CI_TEXT_X + CI_TEXT_W + 1,
+               CI_TEXT_Y + CI_TEXT_H + 1);
+    drawTransientOrCIText(transientMsg);
   }
 }
 
@@ -859,10 +870,10 @@ function drawFace() {
   if (inMenu) return;
   var date = new Date();
 
+  let msTransient = measureEffectDuration(() => drawTransientMsg());
   let msTime = measureEffectDuration(() => drawTime(date));
   let msEmpty = measureEffectDuration(() => drawEmptySegments());
   let msFilled = measureEffectDuration(() => drawRingGauges());
-  let msTransient = measureEffectDuration(() => drawTransientMsg());
   let msClockInfo = measureEffectDuration(() => {
     if (curClockInfo) curClockInfo.redraw();
   });
@@ -1265,19 +1276,17 @@ function eligibleClockInfoItems() {
 var lastCIValue, lastCIFocus = false, lastCIName = '';
 function drawGaugeClockInfo (itm, info, options) {
   g.reset();
-  if (options.focus != lastCIFocus || itm.name != lastCIName) {
+  if (!transientMsg && (options.focus != lastCIFocus || itm.name != lastCIName)) {
     // TODO: Improve L&F
-    if (options.focus) { g.setColor(autoGray('#222')); } else { g.setColor(g.theme.bg); }
+    clearTransientOrCIText(options.focus ? palCI[1] : g.theme.bg);
     lastCIFocus = options.focus;
     lastCIName = itm.name;
-    g.fillRect(options.x, options.y, options.x+options.w-2, options.y+options.h-1);
-    const midx = options.x+options.w/2;
-    const disp = g.findFont(itm.name, {w: options.w, h: options.h, wrap: true, trim: true});
-    g.setColor(g.theme.fg).setFontAlign(0,-1).drawString(disp.text, midx, CI_TEXT_Y + 1);
+    g.setColor(palCI[2]);
+    drawTransientOrCIText(lastCIName);
   }
   const maxSpan = info.max - info.min;
   const maxNormalizer = maxSpan / CI_GAUGE_W;
-  const normalValue = E.clip(Math.round((info.v - info.min) / maxNormalizer), 0, CI_GAUGE_W);
+  const normalValue = E.clip(Math.round((0|(info.v - info.min)) / maxNormalizer), 0, CI_GAUGE_W);
   if (lastCIValue === normalValue) return;
   const xValue = CI_GAUGE_X + normalValue;
   g.setColor(palCI[2]);
@@ -1291,7 +1300,7 @@ function drawGaugeClockInfo (itm, info, options) {
 
 var clockInfoItems = eligibleClockInfoItems();
 curClockInfo = clockInfo.addInteractive(clockInfoItems, {
-  x: CI_TEXT_X, y: CI_TEXT_Y, w: CI_TEXT_W, h: CI_TEXT_H, // For automatic tap detection
+  x: CI_TEXT_X, y: CI_TEXT_Y - 1, w: CI_TEXT_W, h: CI_TEXT_H, // For automatic tap detection
   draw: drawGaugeClockInfo
 });
 
