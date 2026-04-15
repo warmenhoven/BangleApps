@@ -240,6 +240,7 @@ var prevDrawnTime, prevDrawnSegment = [];
 const HR_RESET = 3; // Reset (and eventually save) totals at a time few will be awake
 
 const BANGLEJS2 = process.env.HWVERSION == 2;
+const EMULATOR = process.env.BOARD.startsWith("EMSCRIPTEN");
 
 var DEBUGGING = false;
 function log_debug(o) {
@@ -1260,19 +1261,6 @@ function clockBtn(btn) {
   }
 }
 
-var clockInfo = require("clock_info");
-function eligibleClockInfoItems() {
-  var raw = clockInfo.load(), ret = [];
-  for (let i = 0; i < raw.length; i++) {
-    let items = raw[i].items.filter(itm => itm.hasRange);
-    if (items.length > 0) {
-      raw[i].items = items;
-      ret.push(raw[i]);
-    }
-  }
-  return ret;
-}
-
 var lastCIValue, lastCIFocus = false, lastCIName = '';
 function drawGaugeClockInfo (itm, info, options) {
   g.reset();
@@ -1298,11 +1286,26 @@ function drawGaugeClockInfo (itm, info, options) {
   lastCIValue = normalValue;
 }
 
-var clockInfoItems = eligibleClockInfoItems();
-curClockInfo = clockInfo.addInteractive(clockInfoItems, {
-  x: CI_TEXT_X, y: CI_TEXT_Y - 1, w: CI_TEXT_W, h: CI_TEXT_H, // For automatic tap detection
-  draw: drawGaugeClockInfo
-});
+// TODO: Get clock-info running correctly in emulator too, with separate module?
+var clockInfo;
+function eligibleClockInfoItems() {
+  var raw = clockInfo.load(), ret = [];
+  for (let i = 0; i < raw.length; i++) {
+    let items = raw[i].items.filter(itm => itm.hasRange);
+    if (items.length > 0) {
+      raw[i].items = items;
+      ret.push(raw[i]);
+    }
+  }
+  return ret;
+}
+if (!EMULATOR) {
+  clockInfo = require("clock_info");
+  curClockInfo = clockInfo.addInteractive(eligibleClockInfoItems(), {
+    x: CI_TEXT_X, y: CI_TEXT_Y - 1, w: CI_TEXT_W, h: CI_TEXT_H, // For automatic tap detection
+    draw: drawGaugeClockInfo
+  });
+}
 
 E.showMenu(); // Dumb hack to reduce first-time flickering
 
