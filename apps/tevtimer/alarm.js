@@ -105,11 +105,8 @@ function showAlarm(alarm) {
       chainTimer.pause();
     }
     tt.update_system_alarms();
-    alarms = require("sched").getAlarms();
 
     Bangle.emit("alarmDismiss", alarm);
-
-    require("sched").setAlarms(alarms);
 
     if (action === 'halt' || tt.SETTINGS.alarm_return) {
       load('tevtimer.app.js');
