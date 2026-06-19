@@ -84,6 +84,7 @@ function showAlarm(alarm) {
       let currentTime = (time.getHours()*3600000)+(time.getMinutes()*60000)+(time.getSeconds()*1000);
       alarm.t = currentTime + settings.defaultSnoozeMillis;
       alarm.t %= 86400000;
+      require("sched").updateAlarm(alarm);
       require("sched").setAlarms(alarms);
 
       Bangle.emit("alarmSnooze", alarm);
