@@ -1,5 +1,238 @@
 
 
+
+let activities=[
+  {
+    name:/*LANG*/"Bike Ride",
+    hrmSportMode:2,
+    icon:require("heatshrink").decompress(atob("mUywIsph4FEg/gAocD/gME/4FEn/ACIfv+AFD/v4AoUB/88AogXDEYIRDgF/FQkf/I9Dh/4n0MIQcH/YMC/waBwAkC8EHFgU/KoNgMIX//5KCgO//l4DwXP/8eHgXh9/k/+An/4vnzv/wjkPj993kOh0C8/fruB48Bzv390gnOA4d9/cMg3gkHf/nBgPwjE/79wsE8h5DBzEIh6BB//GgUDLAP+gIDBQoM3wEwgF2gEM4B7BjPAgxfBwEOnEDPINwg8HEAUPBIKBBWAcPT4UfWwgAhA="))
+  },
+  {
+    name:/*LANG*/"Walk",
+    hrmSportMode:9,
+    icon:require("heatshrink").decompress(atob("mUywIMJuAFEv4FEn/AAocP/AFDg/+AocB/+ADwngDBMB/grEnxWQGIsD/5EDAoIrDHoP/HogSEn4SEh9/EocHz/zCQUB8/8CQd5/8fAoU8v/DMgUPj/wvg9Cw/8h4SC8P/gIlCmF/SogYBLoh8Fv6VEs4SEjgSEKIISDgPzCQl4IYShCh4SDh+DXYcH4ASDgPwNIcA/ANBYAh8DCALIDCAIrDgfgEAIeDgArDng5BHoYUBVAYcBsDlHA"))
+  },
+  {
+    name:/*LANG*/"Outdoor Run",
+    hrmSportMode:1,
+    icon:require("heatshrink").decompress(atob("mUywI52h+AAocH+AFDgf+BwP4gHA/+Agf/gP4n/gCAMB/+P/PAAoX5/gfC///n1+AoN/7/yn4FBj/B/0fw//8/Av+P4P/GIM/74rCCYP3IgcP/YPBJIX8/gFCgP+h0AgkQHAJZEv5oCv4kBJwIACi4jDgEMNAIqDz42DgPzEoQAB/h1DgF+gYfDMwJDDj+AnxVD4EfUofgA4IqC/AHBFQcDG4aRBFQYcBTIQeBwCZCAAPAaQsBNIkAkD/eAAQA=="))
+  },
+  {
+    name:/*LANG*/"Indoor Run",
+    hrmSportMode:21,
+    icon:require("heatshrink").decompress(atob("mUywI52h+AAocH+AFDgf+BwP4gHA/+Agf/gP4n/gCAMB/+P/PAAoX5/gfC///n1+AoN/7/yn4FBj/B/0fw//8/Av+P4P/GIM/74rCCYP3IgcP/YPBJIX8/gFCgP+h0AgkQHAJZEv5oCv4kBJwIACi4jDgEMNAIqDz42DgPzEoQAB/h1DgF+gYfDMwJDDj+AnxVD4EfUofgA4IqC/AHBFQcDG4aRBFQYcBTIQeBwCZCAAPAaQsBNIkAkD/eAAQA=="))
+  },
+  {
+    name:/*LANG*/"Tennis",
+    hrmSportMode:7,
+    icon:require("heatshrink").decompress(atob("mUywIFCvALEn4FEjFgAocMjAFDgUCBwIFBgOAwEHBgVgsAIBDwQYEgcMFYn+HAk/n+AGYUOh/gngFBg8H/kPGIWB/8HFYXAv+B8AFBuAYB/A3CgPx/gFBDYMD/4eC8E//4eCn3/AocHAoJEDAoPAAoUf//wLocPFQQGCDAgZBDAZkBDAY/BDAkBG4YABv5cCGQRcCIoX+DC5EEJQJEE/oSEn8+JQmPFYcH8IrDgP4DAl8DAkfh4YDh+DGIcD8B2E/F8Aoc8j43EbIYYBwAeC"))
+  },
+ 
+  
+];
+
+let avgBPM;
+let bpmCount=0;
+
+var Layout = require("Layout");
+let chosenActivity={};
+
+let drawInterval;
+let bpmDrawListener;
+let stepDrawListener
+let currentBPM="--"
+let bpmChangedTime;
+let timeStarted;
+let stepsWhenStarted;
+let activityOngoing=false;
+
+var activityMenu = {
+  "" : { title : "Start New Activity" }, // options
+};
+activities.forEach((activity, i) => {
+  activityMenu[activity.name]=function(){activityOnboarding(activity);};
+});
+function endActivity(){
+  Bangle.buzz(150)
+  if (drawInterval) {
+    clearInterval(drawInterval);
+    drawInterval = undefined;
+  }
+  if (stepDrawListener) {
+    Bangle.removeListener("step", stepDrawListener);
+    stepDrawListener = undefined;
+  }
+  if (bpmDrawListener) {
+    Bangle.removeListener("HRM", bpmDrawListener);
+    bpmDrawListener = undefined;
+  }
+  Bangle.setOptions({hrmSportMode:-1});
+  Bangle.setHRMPower(false, "workouts");
+  avgBPM=Math.round(avgBPM/bpmCount);  
+  g.clear().setFont("Vector",20)
+    .setFontAlign(0,0)
+    .drawString(`Avg BPM: ${avgBPM}`,g.getWidth()/2,50)
+    .drawString(`Time: ${getElapsedTime(timeStarted,new Date())}`,g.getWidth()/2,100)
+}
+
+function renderDivider(l){
+  print(l)
+  g.drawLine(0,l.y+l.h/2,g.getWidth(),l.y+l.h/2)
+}
+
+var activityLayout = new Layout({
+  
+  
+  type:"v", c: [
+    {type:"", pad:5},
+    {type:"", filly:2},
+    
+    {type:"h", c: [
+      {type:"", pad:5},
+      {type:"h", c: [
+        {type:"img", src: atob("GBiBAAcAAA+AAA/AAA/AAB/AAB/gAA/g4A/h8A/j8A/D8A/D+AfH+AAH8AHn8APj8APj8AHj4AHg4AADAAAHwAAHwAAHgAAHgAADAA=="), scale:1,},
+      {type:"", pad:4},
+        {type:"txt", font:"12%", label:"382", id:"steps" },
+
+      ]},
+      {type:"", fillx:1},
+      {type:"h", c: [
+        {type:"txt", font:"12%", label:"92", id:"calories" },
+        {type:"img", src: atob("GBiBAAAAAAAAAAAAAAAAAAAQAAAQAAAYAAA8AAA+AAB+AAD+AAH+AAH+AAP+QAP+wAf/wAf/wAf/wAP/wAP/gAH/gAH/AAB8AAAAAA=="), scale:1,},
+      ]},
+      {type:"", pad:5},
+    ]},
+    {type:"custom", render:renderDivider, pad:5},
+    {type:"", pad:5},
+    {type:"h", c: [
+      {type:"txt", font:"20%", label:"95", id:"bpm" },
+      {type:"", pad:4},
+      {type:"img", src: atob("Mi2BAAAAAAAAAAAP4AAf4AAf/wAf/gAP/+Af/+AH//wP//wD//+H//+B///z///w///+///8P///////n///////5///////+f///////3///////9////////f///////3///////9////////f///////j///////4///////+P///////B///////wf//////4D//////+Af//////AH//////gA//////4AH/////8AA/////+AAH/////AAB/////gAAP////wAAA////4AAAH///8AAAA///+AAAAH///AAAAA///AAAAAH//gAAAAAf/wAAAAAD/4AAAAAAf4AAAAAAB8AAAAAAAOAAAAAAAAAAAAAAAAAAAAAA=="), scale:0.75, col:"#f00"},
+    ]},
+    {type:"", pad:5},
+    {type:"h", c: [
+      {type:"img", src: atob("MDCBAAAAAAAAAAAAD/AAAAAAD/gAAAAAH/gAAAAAD/gAAAAAD/AAAAAAB+BgAAAAB/DwAAAAP/34AAAA///4AAAD///4AAAH///wAAAP8A/wAAAfwAP4AAA/gAH8AAA+AAB8AAB+AAB+AAB/gAA+AAD74AAfAAD5+AAfAAD4/gAPAADwP8APgAHwH+APgADwD+APgADwB+APgAHwB+APgADwAcAPgAD4AAAPAAD4AAAfAAD4AAAfAAB8AAA+AAB+AAB+AAA/AAD8AAA/gAH8AAAfwAP4AAAP+B/wAAAH///gAAAD///AAAAA//8AAAAAP/wAAAAAAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="),scale: 0.7},
+      {type:"", pad:3},
+      {type:"txt", font:"15%", label:"1:30", id:"timeElapsed" },
+    ]},
+    {type:"", filly:true},
+    {type:"btn", label:"End Workout", id:"endBtn", font: "22", cb:function(){endActivity()}, fillx:true },
+  ]
+},{lazy:true});
+
+
+activityLayout.update();
+
+
+function getElapsedTime(startDate, endDate) {
+  const msDiff = Math.abs(endDate - startDate);
+  const totalSeconds = Math.floor(msDiff / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const paddedSeconds = String(seconds).padStart(2, '0');
+
+  if (hours > 0) {
+    const paddedMinutes = String(minutes).padStart(2, '0');
+    return `${hours}:${paddedMinutes}:${paddedSeconds}`; // Format: h:mm:ss
+  } else {
+    return `${minutes}:${paddedSeconds}`; // Format: m:ss (no hours, minutes unpadded)
+  }
+}
+
+
+
+
+function drawActivity(){
+  
+  activityLayout.steps.label=Bangle.getStepCount()-stepsWhenStarted;
+  activityLayout.timeElapsed.label=getElapsedTime(timeStarted,new Date())
+  activityLayout.bpm.label=currentBPM
+  activityLayout.render();
+
+}
+
+
+
+
+
+
+
+
+
+function startActivity(activity){
+  chosenActivity=activity;
+
+  Bangle.setOptions({hrmSportMode:chosenActivity.hrmSportMode});
+  Bangle.setHRMPower(true, "workouts");
+  
+  timeStarted=new Date();
+  stepsWhenStarted=Bangle.getStepCount();
+  activityOngoing=true;
+  
+  stepDrawListener=drawActivity
+  Bangle.on("step",stepDrawListener)
+  
+  bpmDrawListener=function(hrm){
+    if(hrm.confidence>50&&activityOngoing){
+      currentBPM=hrm.bpm
+      bpmCount++;
+      avgBPM += currentBPM;
+      drawActivity();
+    }
+  }
+  Bangle.on("HRM",bpmDrawListener)
+  
+  drawInterval=setInterval(drawActivity,1000)
+  drawActivity(chosenActivity);
+}
+
+
+
+
+function activityOnboarding(activity){
+  E.showPrompt("Start new "+activity.name+"?",{
+    buttons:{"Start":true,
+            "Cancel":false},
+    buttonHeight:50,
+    img:activity.icon
+  }).then(function(v){
+    if(v){
+      Bangle.buzz(200)
+      startActivity(activity);
+    }else{
+      E.showMenu(activityMenu)
+    }
+  })
+  
+
+}
+
+E.showMenu(activityMenu)
+
+
+
+
+
+//g.clearRect(Bangle.appRect);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//override E.showMenu for easily-tappable larger entries:
 E.showMenu=(function(menu) {
   const H = 60;
   if (menu===undefined) {
@@ -162,110 +395,4 @@ E.showMenu=(function(menu) {
 })
 
 
-
-
-let activities=[
-  {
-    name:/*LANG*/"Bike Ride",
-    hrmSportMode:2,
-    icon:require("heatshrink").decompress(atob("mUywIsph4FEg/gAocD/gME/4FEn/ACIfv+AFD/v4AoUB/88AogXDEYIRDgF/FQkf/I9Dh/4n0MIQcH/YMC/waBwAkC8EHFgU/KoNgMIX//5KCgO//l4DwXP/8eHgXh9/k/+An/4vnzv/wjkPj993kOh0C8/fruB48Bzv390gnOA4d9/cMg3gkHf/nBgPwjE/79wsE8h5DBzEIh6BB//GgUDLAP+gIDBQoM3wEwgF2gEM4B7BjPAgxfBwEOnEDPINwg8HEAUPBIKBBWAcPT4UfWwgAhA="))
-  },
-  {
-    name:/*LANG*/"Walk",
-    hrmSportMode:9,
-    icon:require("heatshrink").decompress(atob("mUywIMJuAFEv4FEn/AAocP/AFDg/+AocB/+ADwngDBMB/grEnxWQGIsD/5EDAoIrDHoP/HogSEn4SEh9/EocHz/zCQUB8/8CQd5/8fAoU8v/DMgUPj/wvg9Cw/8h4SC8P/gIlCmF/SogYBLoh8Fv6VEs4SEjgSEKIISDgPzCQl4IYShCh4SDh+DXYcH4ASDgPwNIcA/ANBYAh8DCALIDCAIrDgfgEAIeDgArDng5BHoYUBVAYcBsDlHA"))
-  },
-  {
-    name:/*LANG*/"Outdoor Run",
-    hrmSportMode:1,
-    icon:require("heatshrink").decompress(atob("mUywI52h+AAocH+AFDgf+BwP4gHA/+Agf/gP4n/gCAMB/+P/PAAoX5/gfC///n1+AoN/7/yn4FBj/B/0fw//8/Av+P4P/GIM/74rCCYP3IgcP/YPBJIX8/gFCgP+h0AgkQHAJZEv5oCv4kBJwIACi4jDgEMNAIqDz42DgPzEoQAB/h1DgF+gYfDMwJDDj+AnxVD4EfUofgA4IqC/AHBFQcDG4aRBFQYcBTIQeBwCZCAAPAaQsBNIkAkD/eAAQA=="))
-  },
-  {
-    name:/*LANG*/"Indoor Run",
-    hrmSportMode:21,
-    icon:require("heatshrink").decompress(atob("mUywI52h+AAocH+AFDgf+BwP4gHA/+Agf/gP4n/gCAMB/+P/PAAoX5/gfC///n1+AoN/7/yn4FBj/B/0fw//8/Av+P4P/GIM/74rCCYP3IgcP/YPBJIX8/gFCgP+h0AgkQHAJZEv5oCv4kBJwIACi4jDgEMNAIqDz42DgPzEoQAB/h1DgF+gYfDMwJDDj+AnxVD4EfUofgA4IqC/AHBFQcDG4aRBFQYcBTIQeBwCZCAAPAaQsBNIkAkD/eAAQA=="))
-  },
-  {
-    name:/*LANG*/"Tennis",
-    hrmSportMode:7,
-    icon:require("heatshrink").decompress(atob("mUywIFCvALEn4FEjFgAocMjAFDgUCBwIFBgOAwEHBgVgsAIBDwQYEgcMFYn+HAk/n+AGYUOh/gngFBg8H/kPGIWB/8HFYXAv+B8AFBuAYB/A3CgPx/gFBDYMD/4eC8E//4eCn3/AocHAoJEDAoPAAoUf//wLocPFQQGCDAgZBDAZkBDAY/BDAkBG4YABv5cCGQRcCIoX+DC5EEJQJEE/oSEn8+JQmPFYcH8IrDgP4DAl8DAkfh4YDh+DGIcD8B2E/F8Aoc8j43EbIYYBwAeC"))
-  },
- 
-  
-];
-
-let chosenActivity={};
-let currentBPM="--"
-let activityOngoing=false;
-var activityMenu = {
-  "" : { title : "Start New Activity" }, // options
-};
-activities.forEach((activity, i) => {
-  activityMenu[activity.name]=function(){activityOnboarding(activity);};
-});
-function endActivity(){
-  Bangle.setOptions({hrmSportMode:-1});
-  Bangle.setHRMPower(false, "workouts");
-}
-function drawActivity(){
-  R=Bangle.appRect
-  
-  
- g.clearRect(R.x,R.y,g.getWidth(),g.getHeight()-37); g.setColor(g.theme.fg).drawImage(atob("ICCBAAAAAAAAAAAAAAAAAAAAAAAAA+AAAAPgAAADwAAAAcAAAA/wAAA//AAAcA8AAOMDgAHPAYABnwDAAz8AwAM/AGACfwBgBn8AYAZ/AGAGf8BgAn/4YAM//mADP/7AAZ/8wAHP+YAA48OAAHAPAAA//AAAD/AAAAAAAAAAAAAAAAAA"),R.x+14,R.y+10)
-  
-  g.setColor("#f00");   g.drawImage(atob("Mi2BAAAAAAAAAAAP4AAf4AAf/wAf/gAP/+Af/+AH//wP//wD//+H//+B///z///w///+///8P///////n///////5///////+f///////3///////9////////f///////3///////9////////f///////j///////4///////+P///////B///////wf//////4D//////+Af//////AH//////gA//////4AH/////8AA/////+AAH/////AAB/////gAAP////wAAA////4AAAH///8AAAA///+AAAAH///AAAAA///AAAAAH//gAAAAAf/wAAAAAD/4AAAAAAf4AAAAAAB8AAAAAAAOAAAAAAAAAAAAAAAAAAAAAA=="),g.getWidth()-80,70-15);
-  g.setFont("Vector",20).setFontAlign(1,0).drawString(currentBPM,g.getWidth()-85,70-15)
-
-}
-
-function startActivity(activity){
-  chosenActivity=activity;
-
-  Bangle.setOptions({hrmSportMode:chosenActivity.hrmSportMode});
-  Bangle.setHRMPower(true, "workouts");
-  activityOngoing=true;
-  E.showPrompt(" ",{
-    buttons:{"End Activity":true},buttonHeight:35  })
-    .then(function(v){
-
-      Bangle.buzz(200)
-      
-      endActivity();
-  })
-  
-  drawActivity(chosenActivity);
-}
-
-
-
-
-function activityOnboarding(activity){
-  E.showPrompt("Start new "+activity.name+"?",{
-    buttons:{"Start":true,
-            "Cancel":false},
-    buttonHeight:50,
-    img:activity.icon
-  }).then(function(v){
-    if(v){
-      Bangle.buzz(200)
-      startActivity(activity);
-    }else{
-      E.showMenu(activityMenu)
-    }
-  })
-  
-
-}
-
-E.showMenu(activityMenu)
-
-Bangle.on("HRM",function(hrm){
-  if(hrm.confidence>50&&activityOngoing){
-    currentBPM=hrm.bpm
-    drawActivity();
-  }
-})
-
-
-//g.clearRect(Bangle.appRect);
 
