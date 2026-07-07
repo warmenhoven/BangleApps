@@ -1,11 +1,13 @@
-
-
-
 let activities=[
   {
     name:/*LANG*/"Bike Ride",
     hrmSportMode:2,
     icon:require("heatshrink").decompress(atob("mUywIsph4FEg/gAocD/gME/4FEn/ACIfv+AFD/v4AoUB/88AogXDEYIRDgF/FQkf/I9Dh/4n0MIQcH/YMC/waBwAkC8EHFgU/KoNgMIX//5KCgO//l4DwXP/8eHgXh9/k/+An/4vnzv/wjkPj993kOh0C8/fruB48Bzv390gnOA4d9/cMg3gkHf/nBgPwjE/79wsE8h5DBzEIh6BB//GgUDLAP+gIDBQoM3wEwgF2gEM4B7BjPAgxfBwEOnEDPINwg8HEAUPBIKBBWAcPT4UfWwgAhA="))
+  },
+  {
+    name:/*LANG*/"Free Training",
+    hrmSportMode:25,
+    icon:require("heatshrink").decompress(atob("mUywIMJuAFEv4FEn/AAocP/AFDg/+AocB/+ADwngDBMB/grEnxWQGIsD/5EDAoIrDHoP/HogSEn4SEh9/EocHz/zCQUB8/8CQd5/8fAoU8v/DMgUPj/wvg9Cw/8h4SC8P/gIlCmF/SogYBLoh8Fv6VEs4SEjgSEKIISDgPzCQl4IYShCh4SDh+DXYcH4ASDgPwNIcA/ANBYAh8DCALIDCAIrDgfgEAIeDgArDng5BHoYUBVAYcBsDlHA"))
   },
   {
     name:/*LANG*/"Walk",
@@ -31,7 +33,7 @@ let activities=[
   
 ];
 
-let avgBPM;
+let avgBPM=0;
 let bpmCount=0;
 
 var Layout = require("Layout");
@@ -166,7 +168,7 @@ function startActivity(activity){
 
   Bangle.setOptions({hrmSportMode:chosenActivity.hrmSportMode});
   Bangle.setHRMPower(true, "workouts");
-  
+  activityLayout.setUI();
   timeStarted=new Date();
   stepsWhenStarted=Bangle.getStepCount();
   activityOngoing=true;
@@ -183,11 +185,10 @@ function startActivity(activity){
     }
   }
   Bangle.on("HRM",bpmDrawListener)
-  
+  g.clear()
   drawInterval=setInterval(drawActivity,1000)
   drawActivity(chosenActivity);
 }
-
 
 
 
