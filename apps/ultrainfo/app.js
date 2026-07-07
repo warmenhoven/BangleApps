@@ -1,5 +1,6 @@
 // Load fonts
 let background = require("clockbg");
+let lockIcon=atob("DhABH+D/wwMMDDAwwMf/v//4f+H/h/8//P/z///f/g==");
 var settings = Object.assign(
   {
     accentColor: "#f00",
@@ -14,13 +15,13 @@ let drawTimeout;
 
 let draw = function () {
   var date = new Date();
-  background.fillRect(0, 62, g.getWidth() - 1, 110);
-
+  let locked=Bangle.isLocked()
+  background.fillRect(36, 62, g.getWidth() - 36, 110);
   var timeStr = require("locale").time(date, 1); // Hour and minute
   g.setFontAlign(0, -1)
     .setColor(settings.mainColor)
     .setFont("Vector", 30)
-    .drawString(timeStr, g.getWidth() / 2, 62 + 3);
+    .drawString(timeStr, g.getWidth() / 2+3, 62 + 3);
 
   // Show date and day of week
   var dateStr =
@@ -30,9 +31,13 @@ let draw = function () {
     " " +
     date.getDate();
   g.setFont("14")
-    .setFontAlign(0, 1)
-    .drawString(dateStr, g.getWidth() / 2, 110 - 2);
+    .setFontAlign(locked?-1:0, 1)
+    .drawString(dateStr,locked? g.getWidth() / 2- 24 : g.getWidth() / 2, 110 - 2);
 
+  if(locked){
+      g.drawImage(lockIcon,49,91,{scale:0.85})
+
+  }
   // queue next draw
   if (drawTimeout) clearTimeout(drawTimeout);
   drawTimeout = setTimeout(
@@ -51,6 +56,7 @@ background.fillRect(Bangle.appRect);
 
 draw();
 
+
 // CLOCKINFOS:
 
 let clockInfoItems = require("clock_info").load();
@@ -61,7 +67,7 @@ function drawProgBar(x, y, w, val, col) {
     y: y - 2,
     w: w * Math.min(1, val),
     h: 3,
-    r: 8
+    r: 100
   });
 }
 
@@ -80,12 +86,17 @@ let drawRectClockInfo = function (itm, info, options, top) {
     1,
     settings.mainColor
   );
-  if (info.max) {
+  
+  if (info.max&&info.v) {
+    let min=info.min?info.min:0;
+    let val=(info.v-min) / (info.max-min);
+    val=Math.max(0,val);
+    val=Math.min(1,val);
     drawProgBar(
       options.x + 3,
       top ? options.y + options.h - 3 : options.y + 3,
       options.w - 6,
-      +parseFloat(("" + info.text).match(/[\d.]+/)) / info.max,
+      val,
       settings.accentColor
     );
   }
@@ -174,7 +185,7 @@ let brClkInfo=require("clock_info").addInteractive(clockInfoItems, {
     drawRectClockInfo(itm, info, options, false);
   }
 });
-
+Bangle.on("lock",draw);
 Bangle.setUI({
   mode : "clock",
   remove : function() {
@@ -182,6 +193,7 @@ Bangle.setUI({
       clearTimeout(drawTimeout);
       drawTimeout = undefined;
     }
+    Bangle.removeListener("lock",draw);
     if (background && background.unload) background.unload();
     if (tlClkInfo && tlClkInfo.remove) tlClkInfo.remove();
     if (tmClkInfo && tmClkInfo.remove) tmClkInfo.remove();
