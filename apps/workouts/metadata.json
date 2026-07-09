@@ -8,6 +8,7 @@
   "type":"app",    
   "tags": "health,outdoor",
   "author":"RKBoss6",
+  "dependencies": {"calories":"app"},
   "supports": ["BANGLEJS2"],
   "storage": [
     {"name":"workouts.app.js","url":"app.js"},
