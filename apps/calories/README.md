@@ -30,7 +30,8 @@ The app uses the algorithm below:
    **Not Set (avg):** `(-37.7495+(0.5390 x Heart Rate)+(0.0362 x Weight)+(0.1375 x Age))/4.184`
 
 4. Blends the two according to the steps taken (Higher steps per min --> steps weighted more due to potential HRM inaccuracy)
-5. Returns the total calories burned in that interval, active calories (calories actively burned), and BMR calories (calories passively burned)
+5. Uses Max HRM to interpolate between how much it should weight active calories (avoids overestimates)
+6. Returns the total calories burned in that interval, active calories (calories actively burned), and BMR calories (calories passively burned)
 
 ## Clock Info
 This app adds a set of ClockInfos in the `Health` list:
