@@ -128,7 +128,7 @@ exports.calcCalories = function (healthData, myProfile) {
   const lerp = (x, min, max) => Math.min(Math.max((x - min) / (max - min), 0), 1);
 
   let ageMultiplier = 1.0;
-  let activeCaloriesCoefficient=lerp(hr, myProfile.maxHrm*0.40, myProfile.maxHrm*0.6) // use hr extertion level between 50% and 60% of max HR to determine active calories.
+  let activeCaloriesCoefficient=lerp(hr, myProfile.maxHrm*0.5, myProfile.maxHrm*0.6) // use hr extertion level between 50% and 60% of max HR to determine active calories.
   
   let stepsMet =
     (stepsPerMin < 5 ? 1.0 : 2.0 + 0.05 * stepsPerMin) * ageMultiplier; // More realistic scaling with age adjustment
@@ -155,7 +155,7 @@ exports.calcCalories = function (healthData, myProfile) {
   let stepsKcalMin = (stepsMet * 3.5 * weight) / 200;
   // blend METs
   let finalActiveKcalMin = 0;
-  if (stepsPerMin > 120) {
+  if (stepsPerMin > 220) {
     // strenuous activity
     finalActiveKcalMin = hrKcalMin * 0.5 + stepsKcalMin * 0.5;
   } else if (stepsPerMin >= 30) {
