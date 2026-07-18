@@ -1,1 +1,2 @@
 0.01: Initial app based on #4092
+0.02: Fix inflated active calories by scaling based on max HR (#4287)

@@ -93,6 +93,7 @@ exports.calcBMR = function (myProfile) {
   }
   return bmr / 1440;
 };
+
 // Main formula for calculating calories. Takes health data with duration in minutes, and a myprofile data set.
 exports.calcCalories = function (healthData, myProfile) {
   if (!healthData || !healthData.duration) return;
@@ -123,13 +124,15 @@ exports.calcCalories = function (healthData, myProfile) {
     print("Invalid or missing heart rate data");
     return;
   }
+  
+  const lerp = (x, min, max) => Math.min(Math.max((x - min) / (max - min), 0), 1);
 
   let ageMultiplier = 1.0;
-
+  let activeCaloriesCoefficient=lerp(hr, myProfile.maxHrm*0.40, myProfile.maxHrm*0.6) // use hr extertion level between 50% and 60% of max HR to determine active calories.
+  
   let stepsMet =
     (stepsPerMin < 5 ? 1.0 : 2.0 + 0.05 * stepsPerMin) * ageMultiplier; // More realistic scaling with age adjustment
-
-  // calculate calories using current HR (not HRR - that was causing inflation)
+  // calculate calories using current HR 
   if (myProfile.gender != undefined && myProfile.gender != 2 /*not set*/) {
     if (myProfile.gender == 0) {
       //male
@@ -148,7 +151,8 @@ exports.calcCalories = function (healthData, myProfile) {
 
   // extract active portion (subtract BMR)
   hrKcalMin = Math.max(0, hrKcalMin - bmr); // formula adds BMR by default
-
+  
+  
   let stepsKcalMin = (stepsMet * 3.5 * weight) / 200;
   // blend METs
   let finalActiveKcalMin = 0;
@@ -159,8 +163,6 @@ exports.calcCalories = function (healthData, myProfile) {
     // moderate activity
     finalActiveKcalMin = hrKcalMin * 0.5 + stepsKcalMin * 0.5;
   } else {
-    // sedentary or non-step activity (weights)
-    // For elderly, don't penalize as much - might be resistance training
     if (age > 65) {
       finalActiveKcalMin = hrKcalMin * 0.8;
     } else {
@@ -172,7 +174,7 @@ exports.calcCalories = function (healthData, myProfile) {
   finalActiveKcalMin = Math.max(0, finalActiveKcalMin);
 
   // final Outputs
-  let activeTotal = finalActiveKcalMin * healthData.duration;
+  let activeTotal = finalActiveKcalMin * healthData.duration * activeCaloriesCoefficient;
   // boot.js adds bmr separately
   return {
     activeCalories: Math.round(Math.max(0, activeTotal)),
