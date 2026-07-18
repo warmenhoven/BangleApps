@@ -150,31 +150,26 @@ exports.calcCalories = function (healthData, myProfile) {
   }
 
   // extract active portion (subtract BMR)
-  hrKcalMin = Math.max(0, hrKcalMin - bmr); // formula adds BMR by default
-  
+  hrKcalMin = Math.max(0, hrKcalMin - bmr) * activeCaloriesCoefficient; 
   
   let stepsKcalMin = (stepsMet * 3.5 * weight) / 200;
   // blend METs
   let finalActiveKcalMin = 0;
   if (stepsPerMin > 120) {
     // strenuous activity
-    finalActiveKcalMin = hrKcalMin * 0.8 + stepsKcalMin * 0.2;
-  } else if (stepsPerMin >= 10) {
-    // moderate activity
     finalActiveKcalMin = hrKcalMin * 0.5 + stepsKcalMin * 0.5;
+  } else if (stepsPerMin >= 30) {
+    // moderate activity
+    finalActiveKcalMin = hrKcalMin * 0.65 + stepsKcalMin * 0.35;
   } else {
-    if (age > 65) {
-      finalActiveKcalMin = hrKcalMin * 0.8;
-    } else {
-      finalActiveKcalMin = hrKcalMin;
-    }
+    finalActiveKcalMin = hrKcalMin*0.9+stepsKcalMin * 0.1;
   }
 
   // ensure non-negative
   finalActiveKcalMin = Math.max(0, finalActiveKcalMin);
 
   // final Outputs
-  let activeTotal = finalActiveKcalMin * healthData.duration * activeCaloriesCoefficient;
+  let activeTotal = finalActiveKcalMin * healthData.duration;
   // boot.js adds bmr separately
   return {
     activeCalories: Math.round(Math.max(0, activeTotal)),
