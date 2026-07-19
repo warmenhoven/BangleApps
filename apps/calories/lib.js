@@ -126,9 +126,10 @@ exports.calcCalories = function (healthData, myProfile) {
   }
   
   const lerp = (x, min, max) => Math.min(Math.max((x - min) / (max - min), 0), 1);
-
+  
   let ageMultiplier = 1.0;
   let activeCaloriesCoefficient=lerp(hr, myProfile.maxHrm*0.5, myProfile.maxHrm*0.6) // use hr extertion level between 50% and 60% of max HR to determine active calories.
+  print("lerp: "+activeCaloriesCoefficient)
   
   let stepsMet =
     (stepsPerMin < 5 ? 1.0 : 2.0 + 0.05 * stepsPerMin) * ageMultiplier; // More realistic scaling with age adjustment
@@ -148,28 +149,31 @@ exports.calcCalories = function (healthData, myProfile) {
     hrKcalMin =
       (-37.7495 + 0.539 * hr + 0.0362 * weight + 0.1375 * age) / 4.184;
   }
-
+  
   // extract active portion (subtract BMR)
   hrKcalMin = Math.max(0, hrKcalMin - bmr) * activeCaloriesCoefficient; 
-  
+  print("hrcal: "+hrKcalMin)
   let stepsKcalMin = (stepsMet * 3.5 * weight) / 200;
+  print("stepsCal: "+stepsKcalMin)
   // blend METs
   let finalActiveKcalMin = 0;
-  if (stepsPerMin > 220) {
+  print("stepsPerMin: "+stepsPerMin)
+  if (stepsPerMin > 180) {
     // strenuous activity
     finalActiveKcalMin = hrKcalMin * 0.5 + stepsKcalMin * 0.5;
-  } else if (stepsPerMin >= 30) {
+  } else if (stepsPerMin >= 60) {
     // moderate activity
-    finalActiveKcalMin = hrKcalMin * 0.65 + stepsKcalMin * 0.35;
+    finalActiveKcalMin = hrKcalMin * 0.8 + stepsKcalMin * 0.2;
   } else {
-    finalActiveKcalMin = hrKcalMin*0.9+stepsKcalMin * 0.1;
+    finalActiveKcalMin = hrKcalMin*0.96+stepsKcalMin * 0.04;
   }
-
+  
   // ensure non-negative
   finalActiveKcalMin = Math.max(0, finalActiveKcalMin);
-
+  
   // final Outputs
   let activeTotal = finalActiveKcalMin * healthData.duration;
+  print("finalActive: "+activeTotal)
   // boot.js adds bmr separately
   return {
     activeCalories: Math.round(Math.max(0, activeTotal)),
