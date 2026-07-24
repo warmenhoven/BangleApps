@@ -1,10 +1,10 @@
 {
-  "id":"gbmusicremote",
-  "name":"GB Music Remote",
-  "shortName":"GB Music Remote",
+  "id":"gbmediaremote",
+  "name":"GB Media Remote",
+  "shortName":"GB Media Remote",
   "version": "0.01",
   "author": "cyberarm",
-  "description": "Control music on you GadgetBridge-connected phone",
+  "description": "Control media playback on your Gadgetbridge connected device",
   "icon":"icon.png",
   "screenshots": [{"url":"screenshot_two.png"},{"url":"screenshot_one.png"}],
   "type": "app",
@@ -13,7 +13,7 @@
   "readme": "README.md",
   "allow_emulator": true,
   "storage": [
-    {"name":"gbmusicremote.app.js", "url": "app.js"},
-    {"name":"gbmusicremote.img", "url": "icon.js", "evaluate": true}
+    {"name":"gbmediaremote.app.js", "url": "app.js"},
+    {"name":"gbmediaremote.img", "url": "icon.js", "evaluate": true}
   ]
 }
