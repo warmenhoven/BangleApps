@@ -1,7 +1,6 @@
-# GadgetBridge Music Remote
+# GadgetBridge Media Remote
 
-If you have an Android phone with Gadgetbridge, this app allows you to view
-and control music playback.
+Control media playback on your connected Gadgetbridge device.
 
 ![screenshot](screenshot_two.png)
 ![screenshot](screenshot_one.png)
