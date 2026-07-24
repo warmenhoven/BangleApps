@@ -28,7 +28,11 @@ function showSnoozeMenu(alarm){
     let currentTime = (time.getHours()*3600000)+(time.getMinutes()*60000)+(time.getSeconds()*1000);
     alarm.t = currentTime + snoozeTime;
     alarm.t %= 86400000;
+
+    // This makes updateAlarm() recompute the last alarm date so
+    // that it works correctly if we're snoozing beyond midnight
     delete alarm.last;
+
     require("sched").updateAlarm(alarm);
     Bangle.emit("alarmSnooze", alarm);
 
@@ -92,7 +96,11 @@ function showAlarm(alarm) {
       let currentTime = (time.getHours()*3600000)+(time.getMinutes()*60000)+(time.getSeconds()*1000);
       alarm.t = currentTime + settings.defaultSnoozeMillis;
       alarm.t %= 86400000;
+
+      // This makes updateAlarm() recompute the last alarm date so
+      // that it works correctly if we're snoozing beyond midnight
       delete alarm.last;
+
       require("sched").updateAlarm(alarm);
       Bangle.emit("alarmSnooze", alarm);
     } else { // sleep=2, stop the alarm
