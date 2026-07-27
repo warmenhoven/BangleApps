@@ -307,16 +307,6 @@ function showMusicMessage(msg) {
 function showActionsMenu(msg) {
   cancelReloadTimeout();
   var menu = {"":{ title:/*LANG*/"Actions", back:() => showMessage(msg.id, true) }};
-  // Custom actions
-  if (msg.actions) 
-    msg.actions.forEach((action, idx) => {
-      menu[action.title] = () => {
-        msg.new = false;
-        Bluetooth.println("");
-        Bluetooth.println(JSON.stringify({t:"notify",n:"INVOKE_ACTION",id:msg.id,action:idx}));
-        returnToCheckMessages();
-      };
-    });
   if (msg.reply && reply)
     menu[/*LANG*/"Reply"] = () => {
       msg.new = false;
@@ -331,7 +321,17 @@ function showActionsMenu(msg) {
           replying=false; 
           showMessage(msg.id); 
         });
-    };
+    };  
+  // Custom actions
+  if (msg.actions) 
+    msg.actions.forEach((action, idx) => {
+      menu[action.title] = () => {
+        msg.new = false;
+        Bluetooth.println("");
+        Bluetooth.println(JSON.stringify({t:"notify",n:"INVOKE_ACTION",id:msg.id,action:idx}));
+        returnToCheckMessages();
+      };
+    });
   if (msg.positive)
     menu[/*LANG*/"Open"] = () => {
       msg.new = false; 
@@ -497,7 +497,7 @@ function showMessage(msgid, persist) {
   }
   if (msg.actions && msg.actions.length) {
     posHandler = ()=>{ showActionsMenu(msg); };
-    rowRightDraw = function(r) {g.setColor("#0f0").drawImage(atob("QRABAAAAAAAAAcAAAAAAAMAB8AAAAAAAcAD4AAAAAAA8ADgAAAAAAB8AAAAAAAAAD8AAAH//////8AcAP//////8B8Af//////4D4A///////gDgAAAAAAB+AAAAAAAAAD4AAAAAAAAAHgAcAAAAAAAOAB8AAAAAAAYAD4AAAAAAAAADgA=="),r.x+r.w-64,r.y+2);};
+    rowRightDraw = function(r) {g.setColor("#0f0").drawImage(atob("QRABAAAAAAAABwAAAAAAAMAHwAAAAAAAcAPgAAAAAAA8AOAAAAAAAB8AAAAAAAAAD8AAAH//////8BwAP//////8HwAf//////4PgA///////gOAAAAAAAB+AAAAAAAAAD4AAAAAAAAAHgBwAAAAAAAOAHwAAAAAAAYAPgAAAAAAAAAOAA=="),r.x+r.w-64,r.y+2);};
   } else if (msg.reply && reply) {
     posHandler = ()=>{
       replying = true;
