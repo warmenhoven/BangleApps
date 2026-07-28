@@ -101,7 +101,7 @@ function drawDebug() {
   g.setFontAlign(-1, -1);
   g.setFont("Vector", fontSize);
   
-  y = 28;
+  let y = 28;
   drawTime(now.getTime() + 0, y, fontSize);
   y += fontSize;
   
@@ -213,18 +213,6 @@ function draw() {
     s = bat + "%";
     g.drawString(s, 5, g.getHeight() - 2 - fontSize*3);
   }
-
-  return;
-  // Subtle visual bar to show "touch zones" at the bottom
-  g.setColor(0, 0, 0);
-  dy = 18;
-  g.drawLine(0, g.getHeight() - dy, g.getWidth(), g.getHeight() - dy);
-  g.drawLine(g.getWidth() / 2, g.getHeight() - dy, g.getWidth() / 2, g.getHeight());
-  
-  g.setFontAlign(0, 1);
-  g.setFont("Vector", 14);
-  g.drawString("SEC", g.getWidth() / 4, g.getHeight() - 3);
-  g.drawString("GPS", (3 * g.getWidth()) / 4, g.getHeight() - 3);
 }
 
 // --- GPS Synchronization ---
