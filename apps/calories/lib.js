@@ -1,4 +1,4 @@
-// Calories Module
+// Calories Module - RKBoss6
 // Since these calculations are quite heavy, boot.js offloads BMR to a cache to avoid calculating every 2 minutes
 
 let calcAge = function (rawBday) {
@@ -129,7 +129,6 @@ exports.calcCalories = function (healthData, myProfile) {
   
   let ageMultiplier = 1.0;
   let activeCaloriesCoefficient=lerp(hr, myProfile.maxHrm*0.5, myProfile.maxHrm*0.6) // use hr extertion level between 50% and 60% of max HR to determine active calories.
-  print("lerp: "+activeCaloriesCoefficient)
   
   let stepsMet =
     (stepsPerMin < 5 ? 1.0 : 2.0 + 0.05 * stepsPerMin) * ageMultiplier; // More realistic scaling with age adjustment
@@ -152,12 +151,9 @@ exports.calcCalories = function (healthData, myProfile) {
   
   // extract active portion (subtract BMR)
   hrKcalMin = Math.max(0, hrKcalMin - bmr) * activeCaloriesCoefficient; 
-  print("hrcal: "+hrKcalMin)
   let stepsKcalMin = (stepsMet * 3.5 * weight) / 200;
-  print("stepsCal: "+stepsKcalMin)
   // blend METs
   let finalActiveKcalMin = 0;
-  print("stepsPerMin: "+stepsPerMin)
   if (stepsPerMin > 180) {
     // strenuous activity
     finalActiveKcalMin = hrKcalMin * 0.5 + stepsKcalMin * 0.5;
@@ -173,7 +169,6 @@ exports.calcCalories = function (healthData, myProfile) {
   
   // final Outputs
   let activeTotal = finalActiveKcalMin * healthData.duration;
-  print("finalActive: "+activeTotal)
   // boot.js adds bmr separately
   return {
     activeCalories: Math.round(Math.max(0, activeTotal)),
