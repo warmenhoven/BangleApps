@@ -49,7 +49,7 @@
       select : i => {
         var app = apps[i];
         if (!app) return;
-        if (Bangle.haptic) Bangle.haptic();
+        if (Bangle.haptic) Bangle.haptic("touch");
         if (!app.src || require("Storage").read(app.src)===undefined) {
           E.showScroller();
           E.showMessage(/*LANG*/"App Source\nNot found");
