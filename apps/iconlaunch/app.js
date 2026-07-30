@@ -99,8 +99,10 @@
     const iconN = E.clip(Math.floor((e.x - R.x) / itemSize), 0, appsN - 1);
     const appId = id * appsN + iconN;
     if( settings.direct && launchCache.apps[appId])
+      if(Bangle.haptic) Bangle.haptic("touch");
       return require("launch_utils").loadApp(launchCache.apps[appId]);
     if (appId == selectedItem && launchCache.apps[appId])
+      if(Bangle.haptic) Bangle.haptic("touch");
       return require("launch_utils").loadApp(launchCache.apps[appId]);
 
     selectedItem = appId;
