@@ -117,7 +117,7 @@ function onConnect() {
 
 function processMessage(raw) {
   raw = raw.trim();
-  print("Processing complete message:",raw, "length: ", raw.length, "chars");
+  print("Processing complete message:", raw.length, "chars");
 
   let obj;
   try {
@@ -167,7 +167,7 @@ function processMessage(raw) {
         updateWeatherData(obj);
         break;
       case "GPS":
-        Bangle.emit("GPS",obj)
+        Bangle.emit("GPS", obj);
         break;
     }
   } 
