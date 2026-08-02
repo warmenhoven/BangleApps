@@ -26,7 +26,7 @@ function setUpdateIntervals() {
     clearInterval(systemDataInterval);
 
   weatherLocInterval = setInterval(updateWeatherAndLocation, 10 * 60 * 1000);
-  systemDataInterval = setInterval(blueWatch.sendSystemData, 100 * 1000); // 100 seconds
+  systemDataInterval = setInterval(blueWatch.sendSystemData, 6 * 60 * 1000); // 6 mins
 }
 
 Bangle.on("BlueWatchConnected", function () {
