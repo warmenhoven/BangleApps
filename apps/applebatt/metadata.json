@@ -1,0 +1,18 @@
+{
+  "id": "applebatt",
+  "name": "Apple Battery Widget",
+  "shortName":"Apple Battery",
+  "icon": "app.png",
+  "version":"0.01",
+  "type": "widget",
+  "supports": ["BANGLEJS", "BANGLEJS2"],
+  "author": "RKBoss6",
+  "description": "A simple battery widget in the style of iOS devices' battery icons.",
+  "tags": "widget,battery",
+  "provides_widgets" : ["battery"],
+  "storage": [
+    {"name":"applebatt.wid.js","url":"widget.js"}
+  ],
+  "screenshots": [{"url":"screenshot1.png"},{"url":"screenshot2.png"}]
+
+}
