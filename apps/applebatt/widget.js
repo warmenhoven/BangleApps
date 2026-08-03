@@ -18,7 +18,7 @@
     g.setFontAlign(0,0).setColor(g.theme.bg)
     g.setFont("14").drawString(l,x+2+(w/2),y+12)
     if (Bangle.isCharging()) changeInterval(id, intervalHigh);
-      else changeInterval(id, intervalLow);
+    else changeInterval(id, intervalLow);
   }
 
 
