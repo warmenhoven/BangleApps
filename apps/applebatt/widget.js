@@ -22,8 +22,8 @@
   }
 
 
-  Bangle.on('charging',function(charging) { draw(); });
-  var id = setInterval(()=>WIDGETS["applebatt"].draw(), intervalLow);
+  WIDGETS["applebatt"] = { area:"tr", width:32, draw:draw };
+  Bangle.on('charging', () => WIDGETS["applebatt"].draw());
+  var id = setInterval(() => WIDGETS["applebatt"].draw(), intervalLow);
 
-  WIDGETS["applebatt"]={area:"tr",width:32,draw:draw};
 })();
