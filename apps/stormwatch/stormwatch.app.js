@@ -24,25 +24,6 @@ function msg(s) {
 
 msg("uploading\...");
 
-function getUrl(url, cb) {
-  const https = require("http");
-  console.log("Fetching url...");
-
-  https.get(url, (res) => {
-    let rawData = "";
-
-    // A chunk of data has been received
-    res.on("data", (chunk) => {
-      rawData += chunk;
-    });
-
-    // The whole response has been received
-    res.on("end", () => {
-      cb(rawData);
-    });
-  });
-}
-
 function BgetUrl(url, cb) {
   Bangle.http(url).then(result => {
     print("Got http data");
@@ -69,7 +50,7 @@ function draw_msg(s) {
 }
 
 function draw_current() {
-  w = w_current;
+  let w = w_current;
   if (!w)
     return;  
   draw_msg(w.temperature_2m + "C " + w.cloud_cover + "%\n" + w.precipitation + "mm " + w.wind_speed_10m + "km/h\n" + w.pressure_msl + "hPa " + w.elevation + "m");
@@ -78,7 +59,7 @@ function draw_current() {
 
 function draw_warn() {
   function fmt_time(i) {
-    r = Math.floor(i/4);
+    let r = Math.floor(i/4);
     if (i%4 == 0)
       return r+"a ";
     if (i%4 == 1)
@@ -90,13 +71,12 @@ function draw_warn() {
   }
   // .':| ... same width; space is way wider; , is wider 
 
-  data = w_minutely;
+  let data = w_minutely;
   if (!data)
     return;
   let n = data.temperature_2m.length;
   let s = "", t = "";
   let f = 4;
-  let lines = 0;
   let temp_base = data.temperature_2m[f];
   let wind_base = 3;
   let day = data.is_day[f];
@@ -138,11 +118,10 @@ function draw_warn() {
     if (s.length > 1) {
       t = t + s + "\n";
       s = "";
-      lines ++;
     }
   }
 
-  res = t + s + temp_min + "C.." + temp_max + "C\nwind " + wind_max + "km/h";
+  let res = t + s + temp_min + "C.." + temp_max + "C\nwind " + wind_max + "km/h";
   print("res: "+res);
   draw_msg(res);
 }
@@ -356,7 +335,6 @@ function draw() {
   g.drawString(dateStr, g.getWidth() / 2, 2);
 
   // 2. Build Time String
-  let num = 10;
   let fontSize = 58;
   let xstart = 12;
   g.setFont("Vector", fontSize);
@@ -375,30 +353,6 @@ function draw() {
 
   //draw_current(w_current);
   draw_any();
-  return;
-
-  // 4. Draw Status Area (Uncertainty & GPS status)
-  fontSize = 28;
-  g.setFont("Vector", fontSize);
-  g.setFontAlign(-1, -1);
-  g.setColor(0, 0, 0);
-
-  let statusText = "(hello)";
-  g.drawString(statusText, 5, g.getHeight() - 2 - fontSize);
-  
-  //let step = Bangle.getStepCount();
-  let step = Bangle.getHealthStatus("day").steps;
-  let s;
-  let dist = step*0.179*0.001;
-  s = dist.toFixed(3) + " km";
-  g.drawString(s, 5, g.getHeight() - 2 - fontSize*2);
-
-  if (bat < 65) {
-    s = bat + "%";
-    g.drawString(s, 5, g.getHeight() - 2 - fontSize*3);
-  }
-
-  return;
 }
 
 function cycle() {
@@ -439,7 +393,7 @@ Bangle.on('drag', function(xy) {
     if (xy.x <= xLimit) {
       draw_current();
     } else {
-      dl_current();
+      cycle();
     }
   }    
 });
