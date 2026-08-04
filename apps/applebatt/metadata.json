@@ -7,12 +7,16 @@
   "type": "widget",
   "supports": ["BANGLEJS", "BANGLEJS2"],
   "author": "RKBoss6",
-  "description": "A simple battery widget in the style of iOS devices' battery icons.",
+  "description": "A simple battery widget in the style of iOS devices' battery icons, with a setting to show or hide the percent text.",
   "tags": "widget,battery",
   "provides_widgets" : ["battery"],
   "storage": [
-    {"name":"applebatt.wid.js","url":"widget.js"}
+    {"name":"applebatt.wid.js","url":"widget.js"},
+    {"name":"applebatt.settings.js","url":"settings.js"}
   ],
-  "screenshots": [{"url":"screenshot1.png"},{"url":"screenshot2.png"}]
+  "data":[
+    {"name":"applebatt.settings.json"}
+  ],
+  "screenshots": [{"url":"screenshot1.png"},{"url":"screenshot2.png"},{"url":"screenshot3.png"}]
 
 }
