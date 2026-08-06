@@ -17,17 +17,15 @@ loadLocation();
 function msg(s) {
   print("msg", s);
   g.reset().clear();
-  g.setFont("Vector", 48);
+  g.setFont("Vector", 38);
   g.drawString(s, 10, 10);
   g.flip();
 }
 
-msg("uploading\...");
-
 function BgetUrl(url, cb) {
   Bangle.http(url).then(result => {
     print("Got http data");
-    cb(result.resp)
+    cb(result.resp);
   }).catch(err => {
     draw_msg("http\nerror");
   });
@@ -414,7 +412,7 @@ if (0) {
   mode = "warn";
 }
 
-msg("droid\ntest\nready");
+msg("weather\nfor\n" + pos.location);
 Bangle.on('lock', setupRefreshInterval);
 //draw_any();
 
