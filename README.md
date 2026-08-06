@@ -254,7 +254,7 @@ and which gives information about the app for the Launcher.
   "name": "Readable name",    // readable name
   "shortName": "Short name",  // short name for launcher
   "version": "0.01",          // the version of this app
-  "author": "github_username",// username of app author (can be an array - ["author1", "author2"], used for tagging in PRs for the app)
+  "author": "github_username",// username of app author (GitHub username or 'Espruino' for anonymity)
   "description": "...",       // long description (can contain markdown)
   "icon": "icon.png",         // icon in apps/
   "screenshots" : [ { "url":"screenshot.png" } ], // optional screenshot for app
@@ -296,6 +296,7 @@ and which gives information about the app for the Launcher.
   "provides_modules" : ["messageicons"] // optional, this app provides a module that can be used with 'require'
   "provides_widgets" : ["battery"] // optional, this app provides a type of widget - 'alarm/battery/bluetooth/pedometer/message'
   "provides_features" : ["welcome"] // optional, this app provides some feature, used to ensure two aren't installed at once. Currently just 'welcome'
+  "requires_firmware" : "2v20", // optional, specify a minimum firmware version your app needs to work properly
   "default" : true,           // set if an app is the default implementer of something (a widget/module/etc)
   "readme": "README.md",      // if supplied, a link to a markdown-style text file
                               // that contains more information about this app (usage, etc)

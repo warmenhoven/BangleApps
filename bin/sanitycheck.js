@@ -169,7 +169,7 @@ const APP_KEYS = [
   'sortorder', 'readme', 'custom', 'customConnect', 'interface', 'storage', 'data',
   'supports', 'allow_emulator',
   'dependencies', 'provides_modules', 'provides_widgets', 'provides_features', "default",
-  "author"
+  "author","requires_firmware"
 ];
 const STORAGE_KEYS = ['name', 'url', 'content', 'evaluate', 'noOverwite', 'supports', 'noOverwrite'];
 const DATA_KEYS = ['name', 'wildcard', 'storageFile', 'url', 'content', 'evaluate'];
@@ -258,6 +258,7 @@ apps.forEach((app,appIdx) => {
         ERROR(`App ${app.id} screenshot file ${screenshot.url} not found`, {file:metadataFile});
     });
   }
+  if(!app.author) ERROR(`App ${app.id} doesn't have an author field`, {file:metadataFile});
   if (app.readme) {
     if (!fs.existsSync(appDir+app.readme))
       ERROR(`App ${app.id} README file doesn't exist`, {file:metadataFile});
