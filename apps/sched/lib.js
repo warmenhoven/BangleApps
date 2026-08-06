@@ -77,6 +77,36 @@ exports.setAlarm = function(id, alarm) {
   return alarm;
 };
 
+// Put an alarm on snooze for `snoozeTime` milliseconds (if already
+// snoozed, this will add to the existing snooze time).
+//
+// `alarms` is the list of alarms from getAlarms, and `alarm` is the
+// alarm object from that list to snooze.
+exports.snoozeAlarm = function(alarms, alarm, snoozeTime) {
+  if (alarms.indexOf(alarm) < 0) {
+    console.error('[sched] snoozeAlarm: Given alarm not in list of alarms');
+    return;
+  }
+
+  if (alarm.ot === undefined) {
+    alarm.ot = alarm.t;
+  }
+  let time = new Date();
+  let currentTime = timeToMillis(time);
+  alarm.t = currentTime + snoozeTime;
+  alarm.t %= 86400000;
+
+  // This makes updateAlarm() recompute the last alarm date so
+  // that it works correctly if we're snoozing beyond midnight
+  delete alarm.last;
+
+  exports.updateAlarm(alarm);
+  Bangle.emit("alarmSnooze", alarm);
+
+  // Save snoozed alarm (still a member of `alarms`) back to storage
+  exports.setAlarms(alarms);
+};
+
 /// Get time until the given alarm (object). Return undefined if alarm not enabled, or if 86400000 or more, alarm could be *more* than a day in the future
 exports.getTimeToAlarm = function(alarm, time) {
   if (!alarm) return undefined;

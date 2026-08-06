@@ -77,17 +77,7 @@ function showAlarm(alarm) {
     buzzCount = 0;
 
     if (action === 'snooze') {
-      if (alarm.ot === undefined) {
-        alarm.ot = alarm.t;
-      }
-      let time = new Date();
-      let currentTime = (time.getHours()*3600000)+(time.getMinutes()*60000)+(time.getSeconds()*1000);
-      alarm.t = currentTime + settings.defaultSnoozeMillis;
-      alarm.t %= 86400000;
-      require("sched").updateAlarm(alarm);
-      require("sched").setAlarms(alarms);
-
-      Bangle.emit("alarmSnooze", alarm);
+      require("sched").snoozeAlarm(alarms, alarm, settings.defaultSnoozeMillis);
     }
     if (action === 'ok' || action === 'halt') {
       let index = alarms.indexOf(alarm);

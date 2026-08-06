@@ -16,33 +16,12 @@ function formatMS(ms) {
   }
 }
 
-function snoozeAlarm(alarm, snoozeTime) {
-    if (alarm.ot === undefined) {
-      alarm.ot = alarm.t;
-    }
-    let time = new Date();
-    let currentTime = (time.getHours()*3600000)+(time.getMinutes()*60000)+(time.getSeconds()*1000);
-    alarm.t = currentTime + snoozeTime;
-    alarm.t %= 86400000;
-
-    // This makes updateAlarm() recompute the last alarm date so
-    // that it works correctly if we're snoozing beyond midnight
-    delete alarm.last;
-
-    require("sched").updateAlarm(alarm);
-    Bangle.emit("alarmSnooze", alarm);
-
-    // The updated alarm is still a member of 'alarms'
-    // so writing to array writes changes back directly
-    require("sched").setAlarms(alarms);
-}
-
 function showSnoozeMenu(alarm){
 
   Bangle.buzz(40);
 
   function onSnooze(snoozeTime) {
-    snoozeAlarm(alarm, snoozeTime);
+    require("sched").snoozeAlarm(alarms, alarm, snoozeTime);
     load();
   }
 
@@ -93,7 +72,7 @@ function showAlarm(alarm) {
       return;
     }
     if (sleep==1) {
-      snoozeAlarm(alarm, settings.defaultSnoozeMillis);
+      require("sched").snoozeAlarm(alarms, alarm, settings.defaultSnoozeMillis);
     } else { // sleep=2, stop the alarm
       let del = alarm.del === undefined ? settings.defaultDeleteExpiredTimers : alarm.del;
       if (del) {
