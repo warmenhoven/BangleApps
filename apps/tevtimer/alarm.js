@@ -80,11 +80,7 @@ function showAlarm(alarm) {
       require("sched").snoozeAlarm(alarms, alarm, settings.defaultSnoozeMillis);
     }
     if (action === 'ok' || action === 'halt') {
-      let index = alarms.indexOf(alarm);
-      if (index !== -1) {
-        alarms.splice(index, 1);
-        require("sched").setAlarms(alarms);
-      }
+      require("sched").stopAlarm(alarms, alarm);
       if (timer !== chainTimer) {
         timer.pause();
         if (tt.SETTINGS.auto_reset) {
