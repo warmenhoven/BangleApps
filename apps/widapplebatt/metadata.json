@@ -1,5 +1,5 @@
 {
-  "id": "applebatt",
+  "id": "widapplebatt",
   "name": "Apple Battery Widget",
   "shortName":"Apple Battery",
   "icon": "app.png",
@@ -11,11 +11,11 @@
   "tags": "widget,battery",
   "provides_widgets" : ["battery"],
   "storage": [
-    {"name":"applebatt.wid.js","url":"widget.js"},
-    {"name":"applebatt.settings.js","url":"settings.js"}
+    {"name":"widapplebatt.wid.js","url":"widget.js"},
+    {"name":"widapplebatt.settings.js","url":"settings.js"}
   ],
   "data":[
-    {"name":"applebatt.settings.json"}
+    {"name":"widapplebatt.settings.json"}
   ],
   "screenshots": [{"url":"screenshot1.png"},{"url":"screenshot2.png"},{"url":"screenshot3.png"}]
 

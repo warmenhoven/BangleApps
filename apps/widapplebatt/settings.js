@@ -1,5 +1,5 @@
 (function(back) {
-  const FILE = "applebatt.settings.json";
+  const FILE = "widapplebatt.settings.json";
   // Load settings
   var settings = Object.assign({
     showPercent: true,
