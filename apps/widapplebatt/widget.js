@@ -4,7 +4,7 @@
   var id;
   let settings;
   function reload() {
-    settings=require("Storage").readJSON("applebatt.settings.json")||{showPercent:true}
+    settings=require("Storage").readJSON("widapplebatt.settings.json")||{showPercent:true}
   }
   function draw() {
     g.reset("widget");
