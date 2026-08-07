@@ -9,7 +9,6 @@ for (let c of ["lapp","rapp","uapp","dapp","tapp"]){ // l=left, r=right, u=up, d
 
 
 var launchCache = require("launch_utils").cache({showClocks:true,showLaunchers:true});
-//launchCache = require("launch_utils").cacheWidgetsCheck(launchCache.apps);
 var apps = launchCache.apps;
 
 // Add psuedo app to trigger Bangle.showLauncher later
@@ -82,7 +81,7 @@ function showMainMenu() {
     // If no app is selected the name is an empty string, but we want to display "(none)".
     let appName = settings[key].name==""?"(none)":settings[key].name;
     mainmenu[entry+ ": "+appName] = function() {showSubMenu(keyCurrent);};
-    }
+  }
 
   return E.showMenu(mainmenu);
 }
