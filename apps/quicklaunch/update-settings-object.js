@@ -32,8 +32,7 @@
   var apps = launchCache.apps;
   launchCache = require("launch_utils").cacheWidgetsCheck(launchCache.apps);
 
-  // Add required launch_utils properties to settings object from versions older than 0.17
-  //delete settings.trace;
+  // Add required launch_utils properties to settings object from versions older than 0.17.
   var settingsKeys = Object.keys(settings);
   settingsKeys.forEach(key => {
     let name = settings[key].name; 
