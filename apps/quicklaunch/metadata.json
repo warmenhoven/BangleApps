@@ -14,7 +14,7 @@
     {"name": "quicklaunch.boot.js", "url": "boot.js"},
     {"name": "quicklaunch.app.js", "url": "app.js"},
     {"name": "launch_utils", "url": "../../modules/launch_utils.js", "noOverwrite":true},
-    {"name": "RAM", "url": "setup.js"}
+    {"name": "RAM", "url": "update-settings-object.js"}
   ],
   "data": [{"name": "quicklaunch.json"}]
 }
