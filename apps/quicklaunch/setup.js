@@ -1,4 +1,4 @@
-()=>{
+{
   var storage = require("Storage");
   var settings = Object.assign(storage.readJSON("quicklaunch.json", true) || {});
 
@@ -38,8 +38,7 @@
   settingsKeys.forEach(key => {
     let name = settings[key].name; 
     let app  = apps.find(app=>app.name === name);
-    print(app)
     if (app) settings[key].wid = app.wid;
   });
   storage.writeJSON("quicklaunch.json",settings);
-}()
+}
