@@ -250,8 +250,8 @@ apps.forEach((app,appIdx) => {
   }
   if (!app.description) ERROR(`App ${app.id} has no description`, {file:metadataFile});
   if (!app.icon) ERROR(`App ${app.id} has no icon`, {file:metadataFile});
-  if (app.type == "widget" && !app.id.hasPrefix("wid") ERROR(`Widget app ${app.id} id does not start with 'wid'`, {file:metadataFile});
-  if (app.type == "clkinfo" && !app.id.hasPrefix("clkinfo") ERROR(`ClockInfo app ${app.id} id does not start with 'clkinfo'`, {file:metadataFile});
+  if (app.type == "widget" && !app.id.hasPrefix("wid")) ERROR(`Widget app ${app.id} id does not start with 'wid'`, {file:metadataFile});
+  if (app.type == "clkinfo" && !app.id.hasPrefix("clkinfo")) ERROR(`ClockInfo app ${app.id} id does not start with 'clkinfo'`, {file:metadataFile});
   if (!fs.existsSync(appDir+app.icon)) ERROR(`App ${app.id} icon doesn't exist`, {file:metadataFile});
   if (app.screenshots) {
     if (!Array.isArray(app.screenshots)) ERROR(`App ${app.id} screenshots is not an array`, {file:metadataFile});
