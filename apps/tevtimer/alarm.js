@@ -8,7 +8,16 @@ if (Bangle.SCHED) {
   delete Bangle.SCHED;
 }
 
+const sched = require("sched");
 const tt = require('tevtimer');
+
+// Regenerate the system alarms after altering a timer's state and
+// ensure the `alarms` list is up to date with the latest version of the
+// alarms.
+function recomputeAlarms() {
+  tt.update_system_alarms();
+  alarms = sched.getAlarms();
+}
 
 function showAlarm(alarm) {
   // Alert the user of the alarm and handle the response
@@ -21,16 +30,6 @@ function showAlarm(alarm) {
   }
   let message = timer.display_name() + '\n' + alarm.msg;
 
-  // Altering alarms from here is tricky. Making changes to timers
-  // requires calling tt.update_system_alarms() to update the system
-  // alarm list to reflect the new timer state. But that means we need
-  // to retrieve the alarms again from sched.getAlarms() before
-  // changing them ourselves or else we risk overwriting the changes.
-  // Likewise, after directly modifying alarms, we need to write them
-  // back with sched.setAlarms() before doing anything that will call
-  // tt.update_system_alarms(), or else the latter will work with an
-  // outdated list of alarms.
-
   // If there's a timer chained from this one, start it (only for
   // alarms not in snoozed status)
   var isChainedTimer = false;
@@ -42,10 +41,7 @@ function showAlarm(alarm) {
       chainTimer.start();
       tt.set_last_viewed_timer(chainTimer);
       isChainedTimer = true;
-
-      // Update system alarm list
-      tt.update_system_alarms();
-      alarms = require("sched").getAlarms();
+      recomputeAlarms();
     } else {
       console.warn("tevtimer: unable to find chained timer with ID " + timer.chain_id);
     }
@@ -77,10 +73,10 @@ function showAlarm(alarm) {
     buzzCount = 0;
 
     if (action === 'snooze') {
-      require("sched").snoozeAlarm(alarms, alarm, settings.defaultSnoozeMillis);
+      sched.snoozeAlarm(alarms, alarm, settings.defaultSnoozeMillis);
     }
     if (action === 'ok' || action === 'halt') {
-      require("sched").stopAlarm(alarms, alarm);
+      sched.stopAlarm(alarms, alarm);
       if (timer !== chainTimer) {
         timer.pause();
         if (tt.SETTINGS.auto_reset) {
@@ -91,7 +87,7 @@ function showAlarm(alarm) {
     if (action === 'halt') {
       chainTimer.pause();
     }
-    tt.update_system_alarms();
+    recomputeAlarms();
 
     Bangle.emit("alarmDismiss", alarm);
 
@@ -130,8 +126,8 @@ function showAlarm(alarm) {
 }
 
 
-let alarms = require("sched").getAlarms();
-let activeAlarm = require("sched").getActiveAlarms(alarms).find(
+let alarms = sched.getAlarms();
+let activeAlarm = sched.getActiveAlarms(alarms).find(
   alarm => alarm.appid === 'tevtimer'
 );
 
