@@ -1,8 +1,8 @@
 // Tea Timer Application for Bangle.js 2 using sched library
 
 const APP_RECT = Bangle.appRect;
-const CENTER_Y = APP_RECT.y+APP_RECT.w/2;
-const CENTER_X = APP_RECT.x+APP_RECT.h/2;
+const CENTER_Y = APP_RECT.y+APP_RECT.h/2;
+const CENTER_X = APP_RECT.x+APP_RECT.w/2;
 
 let timerDuration = (() => {
   let file = require("Storage").open("ateatimer.data", "r");
