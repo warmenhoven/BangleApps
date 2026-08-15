@@ -1145,9 +1145,9 @@ function pickFruitful() {
 }
 
 function pickRecenter() {
-  saveMenuFaceCache();
   if (settings.cur_mode === FALLOW_IDX && prevSpentMode != undefined) {
-    pickLateStartAmt(restoreCachedFace);
+    saveMenuFaceCache();
+    pickLateStartAmt(() => { E.showMenu(); restoreCachedFace(); });
   } else {
     setCurMode(FALLOW_IDX);
   }
