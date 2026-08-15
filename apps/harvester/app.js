@@ -276,6 +276,7 @@ var lastBuzzCheck = 0;
 function addFruitful(i, sec) {
   if (i < FIRST_FRUITFUL_IDX) throw new Error("Can't track fruitful time with i=" + i);
   pendingTimeCat[FALLOW_IDX] += Math.ceil(sec / settings.fallow_denominator);
+  if (pendingTimeCat[FALLOW_IDX] < 0) pendingTimeCat[FALLOW_IDX] = 0;
   const result = pendingTimeCat[i] += sec;
   const targetMin = targetMinFCat[i], secThreshold = targetMin * MIN;
   const secCheckWindow = Math.round((new Date().valueOf() - lastBuzzCheck) / 1000);
