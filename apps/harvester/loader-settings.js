@@ -152,7 +152,12 @@ function parseCategory(elem, arrRef) {
   cat.fg = fg_code[iColor];
   cat.gy = gy_code[iColor];
   let targetMin = elem.querySelector('input[name=target_min]')?.value;
-  if (targetMin) cat.target_min = 0 | targetMin;
+  if (targetMin) {
+    cat.target_min = 0 | targetMin;
+    cat.target_min_override = cat.target_min_override || new Array(7).fill(-1);
+  }
+  // TODO: Bring these together under fruitful check
+  cat.adapt_to_week = !!(elem.querySelector('input[name=adapt_to_week]')?.checked)
   const elemOverrides = Array.from(elem.querySelectorAll('menu input[type=number]'));
   const targetMinOverride = elemOverrides.map(e => '' == e.value ? -1 : 0 | e.value);
   if (targetMinOverride.some(v => v >= 0)) {
@@ -349,7 +354,10 @@ function addNewCategory(isFruitful) {
     color: newColor,
     id: Math.round(Date.now()),
   };
-  if (isFruitful) skeleton.target_min = 15;
+  if (isFruitful) {
+    skeleton.target_min = 15;
+    skeleton.target_min_override = new Array(7).fill(-1);
+  }
   let totalMin = fruitfulElems.reduce((sum, elem, _i, _a) =>
     sum + totalTargetMin(parseCategory(elem)), 0);
   elemContainer.appendChild(createCategoryEdit(skeleton, totalMin));
