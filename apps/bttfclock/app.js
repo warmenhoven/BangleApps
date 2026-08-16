@@ -3,6 +3,9 @@ require("Font7x11Numeric7Seg").add(Graphics);
 require("Font5x7Numeric7Seg").add(Graphics);
 require("Font4x5").add(Graphics);
 
+const locale = require("locale");
+const Storage = require("Storage");
+
 const timeTextY = 4;
 const timeDataY = timeTextY+19;
 const DateTextY = 48;
@@ -11,11 +14,13 @@ const stepGoalBatTextY = 100;
 const stepGoalBatdataY = stepGoalBatTextY+19;
 const statusTextY = 140;
 const statusDataY = statusTextY+19;
-let stepGoal = (require("Storage").readJSON("health.json",1)||10000).stepGoal;
+let stepGoal = (Storage.readJSON("health.json",1)||10000).stepGoal;
 let steps = 0;
-let alarmStatus = (require('Storage').readJSON('sched.json',1)||[]).some(alarm=>alarm.on);
+let alarmStatus = (Storage.readJSON('sched.json',1)||[]).some(alarm=>alarm.on);
 let charching = Bangle.isCharging();
 let chargeAniFrame= 0;
+let btConnected = NRF.getSecurityStatus().connected;
+let hasNewMessages = (Storage.readJSON('messages.json',1)||[]).some(messag=>messag.new==true);
 
 const chargeAni =[require("heatshrink").decompress(atob("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")),
 require("heatshrink").decompress(atob("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")),
@@ -43,8 +48,6 @@ function queueDraw(time) {
   drawTimeout = setTimeout(function() {
     drawTimeout = undefined;
     draw();
-    //draw;
-    //console.log(drawTimeout);
   }, time - (Date.now() % time));
 
 }
@@ -54,11 +57,9 @@ function getSteps() {
 }
 
 function drawBackground() {
-  //g.setBgColor(1,1,1);
   g.setBgColor('#555555');
   g.setColor(1,1,1);
   g.clear();
-  //g.drawImage(imgBg,0,0);
   g.reset();
 }
 function drawBlackBox() {
@@ -96,10 +97,8 @@ function draw(){
   }else{
     drawWatchface();
   }
-  //console.log(charching);
   queueDraw(time);
 }
-
 function drawGoal() {
   var goal = stepGoal <= steps;
   g.reset();
@@ -170,8 +169,6 @@ function drawCharging(){
   var batDrawX = 80-(11*batl);
   //80 69 58
   g.drawString(bat, batDrawX, 20);
-  //g.drawLine(77,18,94,18);
-
 }
 
 function drawWatchface(){
@@ -233,8 +230,8 @@ function drawWatchface(){
   g.drawString(d, 13, DateDataY);
   g.drawString(y, 127, DateDataY);
   g.setFont("8x16");
-  g.drawString(require("locale").month(new Date(), 2).toUpperCase(), 52, DateDataY);
-  g.drawString(require("locale").dow(new Date(), 2).toUpperCase(), 92, DateDataY);
+  g.drawString(locale.month(date, 2).toUpperCase(), 52, DateDataY);
+  g.drawString(locale.dow(date, 2).toUpperCase(), 92, DateDataY);
 
 
   //status
@@ -253,14 +250,14 @@ function drawWatchface(){
 
   //status
   var b = bluetoothOffIcon;
-  if (NRF.getSecurityStatus().connected){
+  if (btConnected){
     b = bluetoothOnIcon;
   }
   g.drawImage(b, 62, statusDataY-1);
   if (alarmStatus){
     g.drawImage(alarmIcon, 78, statusDataY-1);
   }
-  if ((require('Storage').readJSON('messages.json',1)||[]).some(messag=>messag.new==true)){
+  if (hasNewMessages){
     g.drawImage(notificationIcon, 94, statusDataY-1);
   }
 
@@ -279,12 +276,10 @@ function drawWatchface(){
  *
  */
 g.setTheme({bg:"#000",fg:"#fff",dark:true}).clear();
-//draw();
 //the following section is from waveclk
 Bangle.on('lcdPower',function(on) {
   if (on) {
     draw(); // draw immediately, queue redraw
-    console.log(drawTimeout);
   } else { // stop draw timer
     if (drawTimeout) clearTimeout(drawTimeout);
     drawTimeout = undefined;
@@ -298,11 +293,22 @@ Bangle.on('charging', function(charging) {
   draw();
 });
 
+NRF.on('connect', function() {
+  btConnected = true;
+});
+
+NRF.on('disconnect', function() {
+  btConnected = false;
+});
+
+Bangle.on("message", function() {
+  hasNewMessages = (Storage.readJSON('messages.json',1)||[]).some(messag=>messag.new==true);
+});
+
 
 Bangle.setUI("clock");
 // Load widgets, but don't show them
 Bangle.loadWidgets();
 require("widget_utils").swipeOn(); // hide widgets, make them visible with a swipe
 g.clear(1);
-//queueDraw();
 draw();
