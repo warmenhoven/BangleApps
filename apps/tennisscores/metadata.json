@@ -8,6 +8,7 @@
   "tags": "sport,http",
   "supports" : ["BANGLEJS2"],
   "readme": "README.md",
+  "interface": "interface.html",
   "screenshots" : [ {"url":"screenshot.png"}, {"url":"screenshot2.png"} ],
   "storage": [
     {"name":"tennisscores.app.js","url":"app.js"},
