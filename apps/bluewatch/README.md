@@ -36,6 +36,13 @@ To send a string or a JSON, you can use the following:
 require("bluewatch").sendData("string or object", true);
 ```
 with an optional second parameter `forceSend`. When true, it sends even if BlueWatch is not connected at the time. By default it doesn't send info unless the device handshake is completed and BlueWatch is connected
+
+In the iOS app version 1.4, you can also use the Shortcuts app to send custom messages to the watch, as well as pushing weather and location via shortcuts. In the Bangle app version v0.04, the watch will also emit the `BlueWatchMessage` event when a new message is received, allowing you to create your own workflows and automations using shortcuts and a receiving script:
+```
+Bangle.on("BlueWatchMessage", (message) => {
+    // your code here
+});
+```
 ## Author and Creator of the iOS App
 RKBoss6
 

@@ -118,7 +118,7 @@ function onConnect() {
 function processMessage(raw) {
   raw = raw.trim();
   print("Processing complete message:", raw.length, "chars");
-
+  Bangle.emit("BlueWatchMessage", raw);
   let obj;
   try {
     obj = JSON.parse(raw);
