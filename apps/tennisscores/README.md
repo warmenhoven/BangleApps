@@ -9,10 +9,12 @@ When nothing is live it shows the next scheduled fixtures instead.
 ## Usage
 
 Just install and configure the app. This needs an internet-enabled Gadgetbridge version.
-Install one of the text input libraries to set the API key in the app settings.
 
 You need a (free) API key from [livetennisapi.com](https://livetennisapi.com).
-Enter it in the app settings.
+The easiest way to enter it is the app's web interface in the App Loader,
+which lets you paste the key and pick a tour from the browser. Alternatively
+install one of the text input libraries and set the key on the watch in the
+app settings.
 
 ## Controls
 
