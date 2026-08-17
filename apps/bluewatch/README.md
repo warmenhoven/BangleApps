@@ -14,6 +14,7 @@ Bangle.js 1 support coming soon!
 - Automatic weather updates without any additional setup
 - Find my phone support
 - Use of the phone's GPS for Bangle.js GPS.
+- Sending and storing of heart rate, steps, battery, and active/resting calories (if installed) to Apple Health/BlueWatch app
 
 **Note:** This app still uses the `iOS Integration app` to handle pushing notifications from the phone to the watch.
 
