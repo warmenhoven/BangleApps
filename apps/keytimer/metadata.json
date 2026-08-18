@@ -18,6 +18,10 @@
       "url": "app.js"
     },
     {
+      "name": "keytimer.boot.js",
+      "url": "boot.js"
+    },
+    {
       "name": "keytimer.img",
       "url": "icon.js",
       "evaluate": true
@@ -25,10 +29,6 @@
     {
       "name": "keytimer-com.js",
       "url": "common.js"
-    },
-    {
-      "name": "keytimer-ring.js",
-      "url": "ring.js"
     },
     {
       "name": "keytimer-keys.js",

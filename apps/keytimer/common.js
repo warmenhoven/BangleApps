@@ -30,7 +30,6 @@ exports.startTimer = function (time) {
     common.state.timeLeft = time;
     timer.del = true;
     timer.appid = 'keytimer';
-    timer.js = "load('keytimer-ring.js')";
 
     sched.setAlarm('keytimer', timer);
     sched.reload();
