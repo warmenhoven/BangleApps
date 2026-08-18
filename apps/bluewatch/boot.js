@@ -99,7 +99,7 @@ function setMyLocation(d) {
   numFields.forEach((field) => {
     if (locationJson[field] != null) locationJson[field] = +locationJson[field];
   });
-  myLocationSaved = require("Storage").readJSON("mylocation.json", true) || {}
+  let myLocationSaved = require("Storage").readJSON("mylocation.json", true) || {}
   
   
   //load mylocation file
