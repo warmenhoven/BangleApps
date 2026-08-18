@@ -27,7 +27,7 @@ exports.startTimer = function (time) {
     let timer = sched.newDefaultTimer();
 
     timer.timer = time;
-    common.state.timeLeft = time;
+    exports.state.timeLeft = time;
     timer.del = true;
     timer.appid = 'keytimer';
 
