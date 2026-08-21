@@ -853,9 +853,9 @@ Bangle.setUI({mode:"clock",remove:function() {
     Bangle.removeListener("lock",onLock);
     Bangle.removeListener("charging",onCharge);
     Bangle.removeListener("touch",onTouch);
-    require('sched').setAlarm(TIMER_IDX, undefined);
     g.setTheme(themeBefore);
     widget_utils.cleanup();
+    // NB: Leave TIMER_IDX alarm alone; timer should persist while leaving and returning to clock.
 }});
 Bangle.loadWidgets();
 // Clear the screen once, at startup and draw clock
