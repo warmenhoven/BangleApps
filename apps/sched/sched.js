@@ -73,8 +73,7 @@ function showAlarm(alarm) {
     if (sleep==1) {
       require("sched").snoozeAlarm(alarms, alarm, settings.defaultSnoozeMillis);
     } else { // sleep=2, stop the alarm
-      require("sched").stopAlarm(alarms, alarm);
-      Bangle.emit("alarmDismiss", alarm);
+      require("sched").dismissAlarm(alarms, alarm);
     }
 
     load();

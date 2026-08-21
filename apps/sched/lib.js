@@ -130,10 +130,10 @@ exports.snoozeAlarm = function(alarms, alarm, snoozeTime) {
   delete alarm.last;
 
   exports.updateAlarm(alarm);
-  Bangle.emit("alarmSnooze", alarm);
 
   // Save snoozed alarm (still a member of `alarms`) back to storage
   exports.setAlarms(alarms);
+  Bangle.emit("alarmSnooze", alarm);
   return 'snoozed';
 };
 
@@ -146,10 +146,10 @@ exports.snoozeAlarm = function(alarms, alarm, snoozeTime) {
 //
 // `alarms` is the list of alarms from getAlarms, and `alarm` is the
 // alarm object from that list to dismiss.
-exports.stopAlarm = function(alarms, alarm) {
+exports.dismissAlarm = function(alarms, alarm) {
   const alarmIndex = alarms.indexOf(alarm);
   if (alarmIndex < 0) {
-    console.error('[sched] stopAlarm: Given alarm not in list of alarms');
+    console.error('[sched] dismissAlarm: Given alarm not in list of alarms');
     return 'error';
   }
 
@@ -175,8 +175,9 @@ exports.stopAlarm = function(alarms, alarm) {
     }
   }
 
-  // Save snoozed alarm (still a member of `alarms`) back to storage
+  // Save dismissed alarm (still a member of `alarms`) back to storage
   require("sched").setAlarms(alarms);
+  Bangle.emit("alarmDismiss", alarm);
   return actionTaken;
 };
 

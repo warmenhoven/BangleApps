@@ -76,7 +76,7 @@ function showAlarm(alarm) {
       sched.snoozeAlarm(alarms, alarm, settings.defaultSnoozeMillis);
     }
     if (action === 'ok' || action === 'halt') {
-      sched.stopAlarm(alarms, alarm);
+      sched.dismissAlarm(alarms, alarm);
       if (timer !== chainTimer) {
         timer.pause();
         if (tt.SETTINGS.auto_reset) {
@@ -88,8 +88,6 @@ function showAlarm(alarm) {
       chainTimer.pause();
     }
     recomputeAlarms();
-
-    Bangle.emit("alarmDismiss", alarm);
 
     if (action === 'halt' || tt.SETTINGS.alarm_return) {
       load('tevtimer.app.js');
