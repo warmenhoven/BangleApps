@@ -10,6 +10,8 @@
   "author":"RKBoss6",
   "dependencies": {"calories":"app"},
   "supports": ["BANGLEJS2"],
+  "readme": "README.md",
+  "screenshots": [{"url":"scr.png"}],
   "storage": [
     {"name":"workouts.app.js","url":"app.js"},
     {"name":"workouts.img","url":"app-icon.js","evaluate":true}
