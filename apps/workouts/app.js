@@ -101,8 +101,8 @@ E.showMenu = function (menu) {
       function draw() {
         var mx = R.x + R.w / 2,
           my = 12 + R.y + R.h / 2,
-          txt = item.format ? item.format(v, 2) : v,
-          s = 30;
+          txt = item.format ? item.format(v, 2) : v;
+       // ,s = 30;
         g.reset()
           .setColor(g.theme.bg2)
           .fillRect({
@@ -333,10 +333,8 @@ let drawInterval;
 let bpmDrawListener;
 let stepDrawListener;
 let currentBPM = "--";
-let bpmChangedTime;
 let stepsWhenStarted;
 let activityOngoing = false;
-let caloriesAccumulated = 0;
 let myProfile = require("Storage").readJSON("myprofile.json", 1)
 let maxBPM = 0;
 let secondsElapsed = 0;
