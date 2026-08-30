@@ -49,7 +49,6 @@ E.showScroller({
         if (!app.src || s.read(app.src)===undefined) {
           E.showScroller();
           E.showMessage(/*LANG*/"App Source\nNot found");
-          setTimeout(drawMenu, 2000);
         } else {
           require("launch_utils").loadApp(app);
       }
